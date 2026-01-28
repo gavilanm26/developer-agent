@@ -4,167 +4,147 @@
 UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT_ROOT="$(dirname "$(dirname "$UTILS_DIR")")"
 
-# Función de compatibilidad para timeout (útil en macOS)
-run_timeout() {
-    local duration=$1
-    shift
-    if command -v timeout >/dev/null 2>&1; then
-        timeout "$duration" "$@"
-    elif command -v gtimeout >/dev/null 2>&1; then
-        gtimeout "$duration" "$@"
-    else
-        # Fallback simple usando un proceso en segundo plano si no hay timeout/gtimeout
-        "$@" &
-        local pid=$!
-        (sleep "${duration%s}"; kill $pid 2>/dev/null) &
-        wait $pid
-        return $?
-    fi
+# Función de timeout real para procesos y subprocesos
+run_with_timeout() {
+    local duration=$1; shift
+    ( eval "$@" ) &
+    local pid=$!
+    local count=0
+    while kill -0 $pid 2>/dev/null; do
+        if [ $count -ge $duration ]; then
+            echo "⏰ TIMEOUT ($duration s). Matando $pid..."
+            kill -9 $pid 2>/dev/null
+            return 124
+        fi
+        sleep 1; ((count++))
+    done
+    wait $pid
+    return $?
 }
 
-# Función para obtener el porcentaje de cobertura total
 get_coverage_pct() {
     local log_file=$1
-    # Extrae el número de la columna % Stmts de la fila "All files"
     local pct=$(grep "All files" "$log_file" | awk '{print $4}' | cut -d. -f1 | tr -d '%')
     echo "${pct:-0}"
 }
 
-# Función para obtener archivos con baja cobertura o fallos en el reporte de Jest
-get_problematic_files() {
+get_problematic_files_with_details() {
     local log_file=$1
-    # Extrae archivos de la tabla de Jest que no tengan 100% en la columna Statements
-    # Regex mejorada para evitar errores de sub-expresión vacía
-    grep -E "\.ts[[:space:]]*\|" "$log_file" | awk -F'|' '$2 !~ /100/ {print $1}' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep "\.ts$" | sort -u
+    # Extrae: Archivo | % Stmts | Líneas no cubiertas
+    grep -E "\.ts[[:space:]]*|" "$log_file" | awk -F'|' '$2 !~ /100/ {print $1 ":" $2 "%:Lines:" $6}' | sed 's/[[:space:]]//g'
 }
 
-# Uso: run_with_autofix "comando_a_ejecutar" "archivo_objetivo" "modo (build|test)"
-run_with_autofix() {
-    local cmd="$1"
-    local target_file="$2"
-    local mode="${3:-build}"
-    local max_retries=5 # Evita esperas infinitas
-    
-    if [ "$mode" = "test" ]; then
-        max_retries=8 # Un poco más para tests, pero controlado
-    fi
-
-    local attempt=1
-    local temp_log=".gemini/tmp/error.log"
-    local prompt_file=".gemini/tmp/prompt.txt"
-    
-    # Asegurar que el comando use run_timeout si contiene 'timeout'
-    cmd=${cmd/timeout /run_timeout }
+# --- GARANTE DE CALIDAD E INTEGRIDAD ---
+ensure_quality_standards() {
+    local test_cmd="npm run test:cov"
+    local max_iterations=10
+    local iteration=1
+    local temp_log=".gemini/tmp/qa_report.log"
+    local prompt_file=".gemini/tmp/qa_prompt.txt"
+    local modified_files=()
+    local bugs_fixed=()
+    local coverage_goal=95
 
     mkdir -p .gemini/tmp
-
-    # 1. Cargar todas las reglas del proyecto
-    local rules_context=""
-    for rule in "$AGENT_ROOT/.gemini/rules/"*.md; do
-        if [ -f "$rule" ]; then
-            rules_context+="\n--- REGLA ($(basename "$rule")): ---\n$(cat "$rule")\n"
-        fi
-    done
-
-    while [ $attempt -le $max_retries ]; do
-        echo "🔄 Intento $attempt/$max_retries: Verificando ($mode)..."
-        
-        # Timeout global de 120s para el comando (evita bloqueos eternos)
-        run_timeout 120s eval "$cmd" > "$temp_log" 2>&1
+    while [ $iteration -le $max_iterations ]; do
+        echo -e "\n🔍 Iteración $iteration/$max_iterations: Verificando Calidad Total..."
+        run_with_timeout 180 "$test_cmd" > "$temp_log" 2>&1
         local exit_code=$?
-        local coverage_pct=100
+        local current_coverage=$(get_coverage_pct "$temp_log")
         
-        if [ "$mode" = "test" ]; then
-            coverage_pct=$(get_coverage_pct "$temp_log")
-            echo "📊 Cobertura actual: $coverage_pct%"
-        fi
-
-        # Condición de éxito: exit 0 (o timeout) Y (si es test) cobertura >= 95
-        if { [ $exit_code -eq 0 ] || [ $exit_code -eq 124 ] || [ $exit_code -eq 143 ]; } && { [ "$mode" != "test" ] || [ "$coverage_pct" -ge 95 ]; }; then
-            echo "✅ ¡Éxito! Calidad verificada."
-            rm -f "$temp_log" "$prompt_file"
+        if [ $exit_code -eq 0 ] && [ "$current_coverage" -ge "$coverage_goal" ]; then
+            echo -e "✅ CALIDAD TOTAL ALCANZADA: Tests OK y Cobertura al $current_coverage%."
+            echo "📂 Archivos mejorados: ${modified_files[@]}"
+            [ ${#bugs_fixed[@]} -gt 0 ] && echo "🐛 Bugs corregidos: ${bugs_fixed[@]}"
             return 0
         fi
 
-        echo "❌ Fallo detectado. Reparando..."
-        
-        # Identificar archivos a reparar
-        local files_to_fix=""
-        if [ "$mode" = "test" ]; then
-            files_to_fix=$(get_problematic_files "$temp_log")
-            # Si no detecta archivos específicos pero el test falló, usamos el target inicial
-            [ -z "$files_to_fix" ] && files_to_fix="$target_file"
-        else
-            files_to_fix="$target_file"
-        fi
+        local task_mode="FIX_FAIL"; [ $exit_code -eq 0 ] && task_mode="IMPROVE_COVERAGE"
+        local targets=$(get_problematic_files_with_details "$temp_log")
+        [ -z "$targets" ] && targets="General:0%:Lines:All"
 
-        for current_file in $files_to_fix; do
-            # Si es un archivo de código, buscar su .spec.ts correspondiente si estamos en modo test
-            local repair_target="$current_file"
-            if [ "$mode" = "test" ] && [[ "$current_file" != *".spec.ts" ]]; then
-                repair_target="${current_file%.ts}.spec.ts"
-            fi
-
-            if [ ! -f "$repair_target" ]; then
-                repair_target=$(find . -name "$(basename "$repair_target")" | head -1)
-            fi
-
-            if [ -z "$repair_target" ] || [ ! -f "$repair_target" ]; then
-                continue
-            fi
-
-            echo "🤖 Reparando: $repair_target"
+        for target_info in $targets; do
+            local file_name=$(echo $target_info | cut -d: -f1)
+            local uncovered=$(echo $target_info | cut -d: -f4)
+            local prod_file=$(find src -name "$(basename "$file_name")" | head -1)
+            [ -z "$prod_file" ] || [ ! -f "$prod_file" ] && continue
             
-            FILE_CONTENT=$(cat "$repair_target")
-            ERROR_CONTENT=$(tail -n 100 "$temp_log")
+            local spec_file="${prod_file%.ts}.spec.ts"
+            [ ! -f "$spec_file" ] && spec_file=$(find src -name "$(basename "$spec_file")" | head -1)
+            [ -z "$spec_file" ] || [ ! -f "$spec_file" ] && continue
 
-            # 2. Construir prompt simplificado para evitar alucinaciones
-            cat <<EOF > "$prompt_file"
-ERES UN ARQUITECTO DE SOFTWARE SENIOR. 
-TU MISIÓN: Reparar $repair_target para cumplir 95% de cobertura y pasar todos los tests.
-
-REGLAS: $rules_context
-REPORTE: $ERROR_CONTENT
-CÓDIGO ACTUAL: $FILE_CONTENT
-
-INSTRUCCIÓN: Devuelve SOLO el código COMPLETO y CORREGIDO. SIN COMENTARIOS. SIN MARKDOWN. SIN HABLAR.
+            echo "🤖 Procesando: $(basename "$spec_file") (Modo: $task_mode)"
+            
+            # --- CONSTRUIR PROMPT ---
+            if [ "$task_mode" = "FIX_FAIL" ]; then
+                cat <<EOF > "$prompt_file"
+ERES UN ARQUITECTO SENIOR. Repara los fallos garantizando funcionalidad.
+1. Si es error de test, arregla $spec_file.
+2. Si es un BUG REAL, arregla la lógica en $prod_file.
+REGLAS: Sin comentarios. Código completo.
+ARCHIVO PROD: $(cat "$prod_file")
+ARCHIVO TEST: $(cat "$spec_file")
+ERROR: $(tail -n 50 "$temp_log")
 EOF
+            else
+                cat <<EOF > "$prompt_file"
+ERES UN SENIOR QA. Sube cobertura de $prod_file al 100% mejorando $spec_file.
+INSTRUCCIÓN: Solo modifica el test. Cubre líneas: $uncovered.
+REGLAS: Sin comentarios. Mocks de NestJS. Código completo.
+ARCHIVO PROD: $(cat "$prod_file")
+ARCHIVO TEST: $(cat "$spec_file")
+EOF
+            fi
 
-            # 3. IA con TIMEOUTS para evitar bloqueos
-            local models=("gemini-3-pro" "gemini-3-flash-preview")
+            # --- LLAMADA A IA (ORDEN SOLICITADO ENERO 2026) ---
             local ia_success=false
-            local FIXED_CODE=""
+            local models=("gemini-3-flash-preview" "gemini-3-pro-preview" "gemini-2.5-pro" "gemini-2.5-flash")
             
             for model in "${models[@]}"; do
                 echo "📡 Invocando Gemini ($model)..."
-                local out_raw=$(run_timeout 45s gemini prompt --model "$model" "$(cat "$prompt_file")" 2>/dev/null)
-                if [ $? -eq 0 ] && [ ! -z "$out_raw" ]; then
-                    FIXED_CODE=$(echo "$out_raw" | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
-                    echo "✅ Respuesta obtenida de Gemini."
-                    ia_success=true
-                    break
+                run_with_timeout 60 "gemini prompt --model \"$model\" \"$(cat "$prompt_file")\"" > .gemini/tmp/ai_res.txt 2>/dev/null
+                if [ $? -eq 0 ] && [ -s .gemini/tmp/ai_res.txt ]; then
+                    local clean=$(cat .gemini/tmp/ai_res.txt | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
+                    if [ "$task_mode" = "FIX_FAIL" ] && echo "$clean" | grep -q "class.*Adapter\|class.*Service"; then
+                        echo "$clean" > "$prod_file"; bugs_fixed+=($(basename "$prod_file"))
+                    else
+                        echo "$clean" > "$spec_file"
+                    fi
+                    modified_files+=($(basename "$spec_file")); ia_success=true; echo "✅ OK."; break
                 fi
             done
 
+            # Fallback a ChatGPT si Gemini falla
             if [ "$ia_success" = false ] && command -v codex >/dev/null 2>&1; then
-                echo "🔄 Gemini sin cuota. Usando ChatGPT (Codex) sin confirmaciones..."
-                # 'codex exec' con bypass de aprobaciones para uso automático en scripts
-                local out_raw=$(run_timeout 60s codex exec --dangerously-bypass-approvals-and-sandbox "$(cat "$prompt_file")" 2>/dev/null)
-                if [ $? -eq 0 ] && [ ! -z "$out_raw" ]; then
-                    FIXED_CODE=$(echo "$out_raw" | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
-                    echo "✅ Respuesta obtenida de ChatGPT (Codex)."
-                    ia_success=true
+                echo "🔄 Fallback a ChatGPT..."
+                run_with_timeout 60 "codex exec --dangerously-bypass-approvals-and-sandbox \"$(cat "$prompt_file")\"" > .gemini/tmp/ai_res.txt 2>/dev/null
+                if [ $? -eq 0 ] && [ -s .gemini/tmp/ai_res.txt ]; then
+                    local clean=$(cat .gemini/tmp/ai_res.txt | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
+                    echo "$clean" > "$spec_file"; modified_files+=($(basename "$spec_file")); ia_success=true; echo "✅ OK."
                 fi
             fi
-            
-            if [ "$ia_success" = true ] && [ ! -z "$FIXED_CODE" ]; then
-                echo "$FIXED_CODE" > "$repair_target"
-                echo "✨ $repair_target actualizado."
-            else
-                echo "⚠️ No se pudo obtener respuesta de la IA para $repair_target."
-            fi
         done
+        iteration=$((iteration + 1))
+    done
+    return 1
+}
 
+# run_with_autofix para compilación y runtime
+run_with_autofix() {
+    local cmd="$1"; local target="$2"; local mode="${3:-build}"; local max=3; local attempt=1
+    mkdir -p .gemini/tmp
+    while [ $attempt -le $max ]; do
+        echo "🔄 Verificando $mode (Intento $attempt)..."
+        run_with_timeout 120 "$cmd" > .gemini/tmp/error.log 2>&1
+        [ $? -eq 0 ] && return 0
+        echo "❌ Fallo. Invocando IA..."
+        local prompt="Repara $(cat "$target") basado en $(tail -n 20 .gemini/tmp/error.log). SOLO CODIGO. SIN COMENTARIOS."
+        # Intentar Gemini 3 Flash Preview (prioridad rapidez)
+        run_with_timeout 60 "gemini prompt --model \"gemini-3-flash-preview\" \"$prompt\"" > .gemini/tmp/ai_res.txt 2>/dev/null
+        if [ $? -eq 0 ] && [ -s .gemini/tmp/ai_res.txt ]; then
+            cat .gemini/tmp/ai_res.txt | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g' > "$target"
+            echo "✨ Reparado."; attempt=$((attempt + 1)); continue
+        fi
         attempt=$((attempt + 1))
     done
     return 1
