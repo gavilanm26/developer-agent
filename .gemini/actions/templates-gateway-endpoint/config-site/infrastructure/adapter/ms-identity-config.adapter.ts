@@ -19,7 +19,7 @@ export class MsIdentityConfigAdapter implements ConfigSiteAdapter {
     this.version = '/v1';
   }
 
-  async getConfig(payload: any): Promise<ResponseDto> {
+  async get(payload: any): Promise<ResponseDto> {
     const responseValue = await firstValueFrom<AxiosResponse>(
       this.httpService
         .post(

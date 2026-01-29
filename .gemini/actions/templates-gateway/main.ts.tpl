@@ -19,7 +19,7 @@ async function bootstrap() {
   OpenTelemetryConfig.initialize();
 
   const app = await NestFactory.create(AppModule, {
-    logger: new GrafanaLoggerConfig(),
+    logger: ['error', 'warn', 'debug', 'verbose'],
   });
 
   const httpAdapter = app.getHttpAdapter() as ExpressAdapter;

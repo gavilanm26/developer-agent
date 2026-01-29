@@ -7,7 +7,6 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { GqlExecutionContext } from '@nestjs/graphql';
 
 @Injectable()
 export class HeadersInterceptor implements NestInterceptor {
@@ -17,20 +16,16 @@ export class HeadersInterceptor implements NestInterceptor {
     this.requiredHeaders = requiredHeaders;
   }
 
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-    gqlContext: GqlExecutionContext = GqlExecutionContext.create(context),
-  ): Observable<any> {
-    const ctx = gqlContext.getContext();
-    const headers = ctx.req.headers;
-    const path = ctx.req.path;
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest();
+    const headers = request.headers;
+    const path = request.path;
 
     const lowerCaseHeaders = this.requiredHeaders.map((requiredHeaders) =>
       requiredHeaders.toLowerCase(),
     );
 
-    if (!path.startsWith('/health') && !path.startsWith('/graphql'))
+    if (!path.startsWith('/health'))
       for (const header of lowerCaseHeaders) {
         if (!headers[header]) {
           throw new HttpException(

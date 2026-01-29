@@ -70,35 +70,56 @@ render_tpl() {
     "$tpl" > "$out"
 }
 
-echo "📦 Renderizando plantillas para el endpoint '$ENDPOINT_NAME'ப்பான"
-render_tpl "$TPL_DIR/endpoint.module.ts.tpl" "$ENDPOINT_DIR/$ENDPOINT_NAME.module.ts"
-render_tpl "$TPL_DIR/endpoint.controller.ts.tpl" "$ENDPOINT_DIR/infrastructure/controller/$ENDPOINT_NAME.controller.ts"
-render_tpl "$TPL_DIR/domain.service.ts.tpl" "$ENDPOINT_DIR/domain/$ENDPOINT_NAME.service.ts"
-render_tpl "$TPL_DIR/domain.adapter.ts.tpl" "$ENDPOINT_DIR/domain/$ENDPOINT_NAME.adapter.ts"
-render_tpl "$TPL_DIR/impl.service.ts.tpl" "$ENDPOINT_DIR/application/$ENDPOINT_NAME.impl.service.ts"
-render_tpl "$TPL_DIR/ms.adapter.ts.tpl" "$ENDPOINT_DIR/infrastructure/adapter/ms-$ENDPOINT_NAME.adapter.ts"
-render_tpl "$TPL_DIR/dto.ts.tpl" "$ENDPOINT_DIR/infrastructure/dto/$ENDPOINT_NAME.dto.ts"
-render_tpl "$TPL_DIR/request.interface.ts.tpl" "$ENDPOINT_DIR/domain/interfaces/$ENDPOINT_NAME-request.interface.ts"
-render_tpl "$TPL_DIR/response.interface.ts.tpl" "$ENDPOINT_DIR/domain/interfaces/$ENDPOINT_NAME-response.interface.ts"
+# --- NUEVO FLUJO DE CREACIÓN ---
+SKIP_TPL=false
+if [[ -d "$TPL_DIR/$ENDPOINT_NAME" ]]; then
+  echo "📂 Detectada carpeta de template específica para '$ENDPOINT_NAME'. Copiando..."
+  cp -r "$TPL_DIR/$ENDPOINT_NAME/"* "$ENDPOINT_DIR/"
+  echo "✅ Estructura copiada fielmente desde el template."
+  SKIP_TPL=true
+fi
+
+if [ "$SKIP_TPL" = false ]; then
+  echo "📦 Renderizando plantillas genéricas para el endpoint '$ENDPOINT_NAME'ப்பான"
+  render_tpl "$TPL_DIR/endpoint.module.ts.tpl" "$ENDPOINT_DIR/$ENDPOINT_NAME.module.ts"
+  render_tpl "$TPL_DIR/endpoint.controller.ts.tpl" "$ENDPOINT_DIR/infrastructure/controller/$ENDPOINT_NAME.controller.ts"
+  render_tpl "$TPL_DIR/domain.service.ts.tpl" "$ENDPOINT_DIR/domain/$ENDPOINT_NAME.service.ts"
+  render_tpl "$TPL_DIR/domain.adapter.ts.tpl" "$ENDPOINT_DIR/domain/$ENDPOINT_NAME.adapter.ts"
+  render_tpl "$TPL_DIR/impl.service.ts.tpl" "$ENDPOINT_DIR/application/$ENDPOINT_NAME.impl.service.ts"
+  render_tpl "$TPL_DIR/ms.adapter.ts.tpl" "$ENDPOINT_DIR/infrastructure/adapter/ms-$ENDPOINT_NAME.adapter.ts"
+  render_tpl "$TPL_DIR/dto.ts.tpl" "$ENDPOINT_DIR/infrastructure/dto/$ENDPOINT_NAME.dto.ts"
+  render_tpl "$TPL_DIR/request.interface.ts.tpl" "$ENDPOINT_DIR/domain/interfaces/$ENDPOINT_NAME-request.interface.ts"
+  render_tpl "$TPL_DIR/response.interface.ts.tpl" "$ENDPOINT_DIR/domain/interfaces/$ENDPOINT_NAME-response.interface.ts"
+fi
+# ------------------------------
 
 # Registrar en app.module.ts
 APP_MODULE="$SRC_DIR/app.module.ts"
 IMPORT_LINE="import { ${MODULE_CLASS} } from './endpoint/${ENDPOINT_NAME}/${ENDPOINT_NAME}.module';"
 
 if [[ -f "$APP_MODULE" ]]; then
-  if ! grep -qF "$IMPORT_LINE" "$APP_MODULE"; then
-    # inserta import antes del bloque de @Module
-    sed -i '' "/@Module/i\\
-$IMPORT_LINE
-" "$APP_MODULE" || echo "⚠️ No pude insertar import automáticamente."
-  fi
+  echo "🔗 Registrando '$MODULE_CLASS' en AppModule..."
+  
+  IMPORT_LINE="import { ${MODULE_CLASS} } from './endpoint/${ENDPOINT_NAME}/${ENDPOINT_NAME}.module';" \
+  MODULE_CLASS="$MODULE_CLASS" \
+  APP_MODULE_PATH="$APP_MODULE" \
+  node -e "
+const fs = require('fs');
+const path = process.env.APP_MODULE_PATH;
+let content = fs.readFileSync(path, 'utf8');
 
-  # agrega el módulo dentro del array imports
-  if ! grep -q "\b${MODULE_CLASS}\b" "$APP_MODULE"; then
-    sed -i '' "s/imports: [/
-    imports: [
-    ${MODULE_CLASS},"/ "$APP_MODULE" || echo "⚠️ No pude insertar en imports."
-  fi
+// 1. Agregar el import al inicio si no existe
+if (!content.includes(process.env.IMPORT_LINE)) {
+    content = process.env.IMPORT_LINE + '\n' + content;
+}
+
+// 2. Agregar al array de imports usando el ancla
+if (!content.includes(process.env.MODULE_CLASS + ',')) {
+    content = content.replace('// <<ENDPOINT_IMPORTS>>', process.env.MODULE_CLASS + ',\n    // <<ENDPOINT_IMPORTS>>');
+}
+
+fs.writeFileSync(path, content);
+" || echo "⚠️ Error al registrar el módulo con Node.js"
 fi
 
 echo "✅ Endpoint gateway creado en: src/endpoint/$ENDPOINT_NAME"

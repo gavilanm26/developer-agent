@@ -7,8 +7,12 @@ AGENT_ROOT="$(dirname "$(dirname "$UTILS_DIR")")"
 # Función de timeout real para procesos y subprocesos
 run_with_timeout() {
     local duration=$1; shift
-    ( eval "$@" ) &
+    local cmd="$@"
+    
+    # Ejecutamos en segundo plano
+    eval "$cmd" &
     local pid=$!
+    
     local count=0
     while kill -0 $pid 2>/dev/null; do
         if [ $count -ge $duration ]; then
@@ -22,12 +26,15 @@ run_with_timeout() {
     return $?
 }
 
+# Función para obtener el porcentaje de cobertura total
 get_coverage_pct() {
     local log_file=$1
+    # Extrae el número de la columna % Stmts de la fila "All files"
     local pct=$(grep "All files" "$log_file" | awk '{print $4}' | cut -d. -f1 | tr -d '%')
     echo "${pct:-0}"
 }
 
+# Función para obtener archivos con baja cobertura o fallos en el reporte de Jest
 get_problematic_files_with_details() {
     local log_file=$1
     # Extrae: Archivo | % Stmts | Líneas no cubiertas
@@ -73,43 +80,37 @@ ensure_quality_standards() {
             [ ! -f "$spec_file" ] && spec_file=$(find src -name "$(basename "$spec_file")" | head -1)
             [ -z "$spec_file" ] || [ ! -f "$spec_file" ] && continue
 
-            echo "🤖 Procesando: $(basename "$spec_file") (Modo: $task_mode)"
-            
-            # --- CONSTRUIR PROMPT ---
-            if [ "$task_mode" = "FIX_FAIL" ]; then
-                cat <<EOF > "$prompt_file"
-ERES UN ARQUITECTO SENIOR. Repara los fallos garantizando funcionalidad.
-1. Si es error de test, arregla $spec_file.
-2. Si es un BUG REAL, arregla la lógica en $prod_file.
-REGLAS: Sin comentarios. Código completo.
-ARCHIVO PROD: $(cat "$prod_file")
-ARCHIVO TEST: $(cat "$spec_file")
+            cat <<EOF > "$prompt_file"
+ERES UN ARQUITECTO DE SOFTWARE SENIOR. 
+TU MISIÓN ES REPARAR EL ARCHIVO PROPORCIONADO.
+
+REGLAS CRÍTICAS:
+1. RESPONDE ÚNICAMENTE CON EL CÓDIGO FUENTE.
+2. NO EXPLIQUES NADA. NO SALUDES. NO DES CONTEXTO.
+3. SI INCLUYES TEXTO HUMANO, EL SERVIDOR MORIRÁ.
+4. SIN COMENTARIOS. SIN BLOQUES MARKDOWN.
+
+ARCHIVO A EDITAR: $repair_target
+CONTENIDO: $(cat "$repair_target")
 ERROR: $(tail -n 50 "$temp_log")
 EOF
-            else
-                cat <<EOF > "$prompt_file"
-ERES UN SENIOR QA. Sube cobertura de $prod_file al 100% mejorando $spec_file.
-INSTRUCCIÓN: Solo modifica el test. Cubre líneas: $uncovered.
-REGLAS: Sin comentarios. Mocks de NestJS. Código completo.
-ARCHIVO PROD: $(cat "$prod_file")
-ARCHIVO TEST: $(cat "$spec_file")
-EOF
-            fi
 
             # --- LLAMADA A IA (ORDEN SOLICITADO ENERO 2026) ---
             local ia_success=false
             local models=("gemini-3-flash-preview" "gemini-3-pro-preview" "gemini-2.5-pro" "gemini-2.5-flash")
             
             for model in "${models[@]}"; do
-                echo "📡 Invocando Gemini ($model)..."
-                run_with_timeout 60 "gemini prompt --model \"$model\" \"$(cat "$prompt_file")\"" > .gemini/tmp/ai_res.txt 2>/dev/null
+                echo "📡 Invocando IA ($model)..."
+                run_with_timeout 60 "$AGENT_ROOT/.gemini/core/ai-bridge.sh" "$model" "$prompt_file" > .gemini/tmp/ai_res.txt 2>/dev/null
                 if [ $? -eq 0 ] && [ -s .gemini/tmp/ai_res.txt ]; then
                     local clean=$(cat .gemini/tmp/ai_res.txt | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
-                    if [ "$task_mode" = "FIX_FAIL" ] && echo "$clean" | grep -q "class.*Adapter\|class.*Service"; then
-                        echo "$clean" > "$prod_file"; bugs_fixed+=($(basename "$prod_file"))
-                    else
+                    # Filtro de basura para tests
+                    echo "$clean" | awk '/^[[:space:]]*(import|export|@|const|let|var|class|function|describe|it|test|\/\*|\/\/)/ {p=1} p' > "$spec_file"
+                    
+                    if [ ! -s "$spec_file" ]; then
                         echo "$clean" > "$spec_file"
                     fi
+                    
                     modified_files+=($(basename "$spec_file")); ia_success=true; echo "✅ OK."; break
                 fi
             done
@@ -129,21 +130,44 @@ EOF
     return 1
 }
 
-# run_with_autofix para compilación y runtime
+# run_with_autofix para runtime y errores rápidos
 run_with_autofix() {
-    local cmd="$1"; local target="$2"; local mode="${3:-build}"; local max=3; local attempt=1
+    local cmd="$1"; local target_file="$2"; local mode="${3:-runtime}"; local max_retries=3; local attempt=1
     mkdir -p .gemini/tmp
-    while [ $attempt -le $max ]; do
-        echo "🔄 Verificando $mode (Intento $attempt)..."
-        run_with_timeout 120 "$cmd" > .gemini/tmp/error.log 2>&1
-        [ $? -eq 0 ] && return 0
-        echo "❌ Fallo. Invocando IA..."
-        local prompt="Repara $(cat "$target") basado en $(tail -n 20 .gemini/tmp/error.log). SOLO CODIGO. SIN COMENTARIOS."
-        # Intentar Gemini 3 Flash Preview (prioridad rapidez)
-        run_with_timeout 60 "gemini prompt --model \"gemini-3-flash-preview\" \"$prompt\"" > .gemini/tmp/ai_res.txt 2>/dev/null
+    while [ $attempt -le $max_retries ]; do
+        echo "🔄 Intento $attempt: Verificando $mode..."
+        run_with_timeout 120 "eval $cmd" > .gemini/tmp/error.log 2>&1
+        local status=$?
+        
+        if [ $status -eq 0 ] || [ $status -eq 124 ]; then
+            return 0
+        fi
+        
+        echo "❌ Fallo en $mode. Invocando IA para reparar $target_file..."
+        # Guardar prompt en archivo temporal
+        local autofix_prompt_file=".gemini/tmp/autofix_prompt.txt"
+        echo "Repara el archivo $(cat "$target_file") basándose en este error: $(tail -n 20 .gemini/tmp/error.log). Devuelve solo el código completo corregido, sin comentarios, sin markdown." > "$autofix_prompt_file"
+        
+        # Invocamos el puente pasándole la RUTA del archivo
+        run_with_timeout 60 "$AGENT_ROOT/.gemini/core/ai-bridge.sh" "gemini-3-flash-preview" "$autofix_prompt_file" > .gemini/tmp/ai_res.txt 2>/dev/null
+        
         if [ $? -eq 0 ] && [ -s .gemini/tmp/ai_res.txt ]; then
-            cat .gemini/tmp/ai_res.txt | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g' > "$target"
-            echo "✨ Reparado."; attempt=$((attempt + 1)); continue
+            # Limpieza segura y robusta:
+            # 1. Quitamos bloques markdown
+            local clean=$(cat .gemini/tmp/ai_res.txt | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
+            
+            # 2. Filtro de basura: Buscamos la primera linea que sea codigo real 
+            # (import, export, @decorator, const, class, etc) y borramos lo anterior.
+            echo "$clean" | awk '/^[[:space:]]*(import|export|@|const|let|var|class|function|\/\*|\/\/)/ {p=1} p' > "$target_file"
+            
+            # 3. Verificar si el archivo quedo vacio tras el filtro (por si la IA no uso esas palabras)
+            if [ ! -s "$target_file" ]; then
+                echo "$clean" > "$target_file"
+            fi
+            
+            echo "✨ IA aplicó reparación limpia. Reintentando..."
+        else
+            echo "⚠️ IA no pudo generar una respuesta válida."
         fi
         attempt=$((attempt + 1))
     done

@@ -1,8 +1,7 @@
-import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { ConfigSiteService } from '../../domain/config-site.service';
 import { ResponseDto } from '../../../../dto/response';
 import { RequestDto } from '../../../../dto/request';
-import type { Request } from 'express';
 
 @Controller('v1')
 export class ConfigSiteController {
@@ -10,10 +9,7 @@ export class ConfigSiteController {
 
   @Post('/site')
   @HttpCode(200)
-  async getConfig(
-    @Body() body: RequestDto,
-    @Req() req: Request,
-  ): Promise<ResponseDto> {
-    return await this.config.getConfig(body, req);
+  async get(@Body() body: RequestDto): Promise<ResponseDto> {
+    return await this.config.get(body);
   }
 }

@@ -2,7 +2,6 @@ import { CallHandler, ExecutionContext, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import Crypto from '../crypto';
 import { map } from 'rxjs/operators';
-import { GqlExecutionContext } from '@nestjs/graphql';
 
 export class CryptoRequestInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
@@ -41,24 +40,4 @@ export class CryptoResponseInterceptor implements NestInterceptor {
   }
 }
 
-export class CryptoRequestGraphqlInterceptor implements NestInterceptor {
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-    gqlContext: GqlExecutionContext = GqlExecutionContext.create(context),
-  ): Observable<any> {
-    const info = gqlContext.getInfo();
-    const args = gqlContext.getArgs();
 
-    if (info.fieldName && args.data) {
-      const decrypt = Crypto.decrypt(args.data);
-      try {
-        args.data = JSON.parse(decrypt);
-      } catch (error) {
-        args.data = decrypt;
-      }
-    }
-
-    return next.handle();
-  }
-}

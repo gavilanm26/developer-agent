@@ -84,23 +84,5 @@ describe('CryptoResponseInterceptor', () => {
       });
   });
 
-  it('should not encrypt the response data when request.url is "/graphql"', (done) => {
-    const mockRequest = { url: '/graphql' };
-    const mockExecutionContext = new ExecutionContextHost([mockRequest]);
 
-    const switchToHttpSpy = jest
-      .spyOn(mockExecutionContext, 'switchToHttp')
-      .mockReturnValue({
-        getRequest: jest.fn().mockReturnValue(mockRequest),
-      } as any);
-
-    interceptor
-      .intercept(mockExecutionContext, mockNext)
-      .subscribe((result) => {
-        expect(switchToHttpSpy).toHaveBeenCalled();
-        expect(mockRequest.url).toBe('/graphql');
-        expect(result).toEqual({ message: 'data' });
-        done();
-      });
-  });
 });

@@ -130,11 +130,26 @@ cd ..
 if [ "$SUCCESS" = true ]; then
     echo -e "${BLUE}🚀 Verificación de Runtime Obligatoria (Regla runtime-verification.md)...${NC}"
     
-    # Entramos al directorio con ruta absoluta para evitar errores de uv_cwd (directorio borrado/recreado)
+    # Entramos al directorio con ruta absoluta
     cd "$ROOT_AGENT_DIR/$NAME" || exit
     
-    # Intentamos arrancar. La IA reparará si hay errores de inyección o lógica de arranque.
-    if run_with_autofix "timeout 15s npm run start:dev" "src/main.ts"; then
+    # Verificación de Runtime Simplificada
+    echo -e "${BLUE}Iniciando servidor para prueba de vida (15s)...${NC}"
+    npm run start:dev > runtime.log 2>&1 &
+    SERVER_PID=$!
+    sleep 15
+    
+    if kill -0 $SERVER_PID 2>/dev/null; then
+        echo -e "${GREEN}✅ El servidor arrancó y se mantuvo estable.${NC}"
+        kill $SERVER_PID
+        SUCCESS_RUNTIME=true
+    else
+        echo -e "${RED}❌ El servidor crasheó antes de 15 segundos.${NC}"
+        cat runtime.log | tail -n 20
+        SUCCESS_RUNTIME=false
+    fi
+
+    if [ "$SUCCESS_RUNTIME" = true ]; then
         echo -e "${GREEN}✅ API Gateway '$NAME' verificado en runtime exitosamente.${NC}"
         
         # NUEVO: Verificación de Tests y Cobertura

@@ -4,5 +4,5 @@ import { RequestDto } from '../../../dto/request';
 
 @Injectable()
 export abstract class ConfigSiteAdapter {
-  abstract getConfig(requestDto: RequestDto): Promise<ResponseDto>;
+  abstract get(requestDto: RequestDto): Promise<ResponseDto>;
 }

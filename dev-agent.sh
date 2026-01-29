@@ -11,11 +11,22 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Cargar variables de entorno desde .env si existe
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
 chmod +x $ACTIONS_DIR/*.sh 2>/dev/null
 
 check_environment() {
+    # Si hay API KEY, el entorno es válido
+    if [ ! -z "$GEMINI_API_KEY" ]; then
+        return 0
+    fi
+
+    # Si no hay Key, verificar si el CLI está instalado
     if ! command -v gemini >/dev/null 2>&1; then
-        echo -e "${RED}❌ Error: Gemini CLI no está instalado.${NC}"
+        echo -e "${RED}❌ Error: No se detectó GEMINI_API_KEY ni Gemini CLI instalado.${NC}"
         echo -e "Corre ${YELLOW}./dev-agent.sh init${NC} para configurar el entorno."
         exit 1
     fi
@@ -24,16 +35,29 @@ check_environment() {
 setup_agent() {
     echo -e "${BLUE}⚙️ Iniciando configuración del Agente...${NC}"
     
-    # 1. Instalar Gemini CLI si falta
-    if ! command -v gemini >/dev/null 2>&1; then
-        echo "Instalando Gemini CLI globalmente..."
-        npm install -g @google/gemini-cli
-    fi
+    echo -e "\n¿Cómo deseas conectar el Agente?"
+    echo "1) Usar GEMINI_API_KEY (Recomendado para CI/CD)"
+    echo "2) Usar Inicio de Sesión en Navegador (Gemini CLI)"
+    read -p "Opción (1-2): " AUTH_OPT
 
-    # 2. Verificar sesión
-    echo -e "${YELLOW}Verificando sesión de Gemini...${NC}"
-    if ! gemini prompt "test" --model "gemini-3-flash-preview" >/dev/null 2>&1; then
-        echo "Por favor, inicia sesión en Gemini (se abrirá tu navegador):"
+    if [ "$AUTH_OPT" == "1" ]; then
+        read -p "Pega tu GEMINI_API_KEY: " USER_KEY
+        echo "GEMINI_API_KEY=$USER_KEY" >> .env
+        echo -e "${GREEN}✅ Key guardada en .env (No se requiere Node.js)${NC}"
+    else
+        # Verificar si npm existe antes de intentar instalar el CLI
+        if ! command -v npm >/dev/null 2>&1; then
+            echo -e "${RED}❌ Error: Para usar el navegador necesitas Node.js y npm instalados.${NC}"
+            echo "Por favor, usa la Opción 1 (API KEY) si no deseas instalar Node.js."
+            exit 1
+        fi
+
+        # Instalar Gemini CLI si falta
+        if ! command -v gemini >/dev/null 2>&1; then
+            echo "Instalando Gemini CLI globalmente..."
+            npm install -g @google/gemini-cli
+        fi
+        echo "Iniciando sesión..."
         gemini login
     fi
 
