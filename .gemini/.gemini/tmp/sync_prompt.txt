@@ -1,0 +1,21 @@
+ERES UN ARQUITECTO SENIOR. 
+TU TAREA: Registrar estos módulos en el archivo AppModule.ts proporcionado.
+
+MÓDULOS A REGISTRAR:
+- Clase: ConfigSiteModule, Ruta: ./endpoint/config-site/config-site.module\n
+
+INSTRUCCIONES:
+1. Asegura los 'import' al inicio.
+2. Registra las clases en el array 'imports: []'.
+3. Usa el comentario '// <<ENDPOINT_IMPORTS>>' como guía.
+4. DEVUELVE SOLO EL CÓDIGO COMPLETO. SIN COMENTARIOS. SIN HABLAR.
+
+ARCHIVO ACTUAL:
+import { Module } from '@nestjs/common';
+
+@Module({
+  imports: [
+    // <<ENDPOINT_IMPORTS>>
+  ],
+})
+export class AppModule {}

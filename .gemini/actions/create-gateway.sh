@@ -133,6 +133,15 @@ if [ "$SUCCESS" = true ]; then
     # Entramos al directorio con ruta absoluta
     cd "$ROOT_AGENT_DIR/$NAME" || exit
     
+    # Validar integridad de AppModule antes de arrancar
+    echo -e "${BLUE}🔍 Validando integridad de AppModule...${NC}"
+    if grep -q "@Module" src/app.module.ts && grep -q "ConfigSiteModule" src/app.module.ts; then
+        echo -e "${GREEN}✔ AppModule validado correctamente.${NC}"
+    else
+        echo -e "${RED}✘ Error de integridad en AppModule. Invocando IA para sanación...${NC}"
+        run_with_autofix "grep '@Module' src/app.module.ts && grep 'ConfigSiteModule' src/app.module.ts" "src/app.module.ts"
+    fi
+
     # Verificación de Runtime Simplificada
     echo -e "${BLUE}Iniciando servidor para prueba de vida (15s)...${NC}"
     npm run start:dev > runtime.log 2>&1 &
