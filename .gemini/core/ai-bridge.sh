@@ -4,7 +4,11 @@
 MODEL_NAME="${1:-gemini-3-flash-preview}"
 PROMPT_FILE_IN="$2"
 
-TMP_DIR=".gemini/tmp"
+# Resolver rutas absolutas para evitar nesting (.gemini/.gemini)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+TMP_DIR="$AGENT_ROOT/.gemini/tmp"
+
 mkdir -p "$TMP_DIR"
 PAYLOAD_FILE="$TMP_DIR/payload.json"
 
@@ -16,6 +20,12 @@ if [ -z "$GEMINI_API_KEY" ]; then
         exit 1
     fi
 fi
+
+# Cleanup function
+cleanup() {
+    rm -f "$PAYLOAD_FILE"
+}
+trap cleanup EXIT
 
 # 1. Intentar por API KEY (Modo Universal)
 if [ ! -z "$GEMINI_API_KEY" ]; then

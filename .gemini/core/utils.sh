@@ -46,13 +46,16 @@ ensure_quality_standards() {
     local test_cmd="npm run test:cov"
     local max_iterations=10
     local iteration=1
-    local temp_log=".gemini/tmp/qa_report.log"
-    local prompt_file=".gemini/tmp/qa_prompt.txt"
+    # Rutas absolutas
+    local temp_log="$AGENT_ROOT/.gemini/tmp/qa_report.log"
+    local prompt_file="$AGENT_ROOT/.gemini/tmp/qa_prompt.txt"
+    local ai_res_file="$AGENT_ROOT/.gemini/tmp/ai_res.txt"
+    
     local modified_files=()
     local bugs_fixed=()
     local coverage_goal=95
 
-    mkdir -p .gemini/tmp
+    mkdir -p "$AGENT_ROOT/.gemini/tmp"
     while [ $iteration -le $max_iterations ]; do
         echo -e "\n🔍 Iteración $iteration/$max_iterations: Verificando Calidad Total..."
         run_with_timeout 180 "$test_cmd" > "$temp_log" 2>&1
@@ -63,6 +66,9 @@ ensure_quality_standards() {
             echo -e "✅ CALIDAD TOTAL ALCANZADA: Tests OK y Cobertura al $current_coverage%."
             echo "📂 Archivos mejorados: ${modified_files[@]}"
             [ ${#bugs_fixed[@]} -gt 0 ] && echo "🐛 Bugs corregidos: ${bugs_fixed[@]}"
+            
+            # Limpieza de archivos temporales al éxito
+            rm -f "$temp_log" "$prompt_file" "$ai_res_file"
             return 0
         fi
 
@@ -101,9 +107,9 @@ EOF
             
             for model in "${models[@]}"; do
                 echo "📡 Invocando IA ($model)..."
-                run_with_timeout 60 "$AGENT_ROOT/.gemini/core/ai-bridge.sh" "$model" "$prompt_file" > .gemini/tmp/ai_res.txt 2>/dev/null
-                if [ $? -eq 0 ] && [ -s .gemini/tmp/ai_res.txt ]; then
-                    local clean=$(cat .gemini/tmp/ai_res.txt | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
+                run_with_timeout 60 "$AGENT_ROOT/.gemini/core/ai-bridge.sh" "$model" "$prompt_file" > "$ai_res_file" 2>/dev/null
+                if [ $? -eq 0 ] && [ -s "$ai_res_file" ]; then
+                    local clean=$(cat "$ai_res_file" | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
                     # Filtro de basura para tests
                     echo "$clean" | awk '/^[[:space:]]*(import|export|@|const|let|var|class|function|describe|it|test|\/\*|\/\/)/ {p=1} p' > "$spec_file"
                     
@@ -118,9 +124,9 @@ EOF
             # Fallback a ChatGPT si Gemini falla
             if [ "$ia_success" = false ] && command -v codex >/dev/null 2>&1; then
                 echo "🔄 Fallback a ChatGPT..."
-                run_with_timeout 60 "codex exec --dangerously-bypass-approvals-and-sandbox \"$(cat "$prompt_file")\"" > .gemini/tmp/ai_res.txt 2>/dev/null
-                if [ $? -eq 0 ] && [ -s .gemini/tmp/ai_res.txt ]; then
-                    local clean=$(cat .gemini/tmp/ai_res.txt | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
+                run_with_timeout 60 "codex exec --dangerously-bypass-approvals-and-sandbox \"$(cat "$prompt_file")\"" > "$ai_res_file" 2>/dev/null
+                if [ $? -eq 0 ] && [ -s "$ai_res_file" ]; then
+                    local clean=$(cat "$ai_res_file" | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
                     echo "$clean" > "$spec_file"; modified_files+=($(basename "$spec_file")); ia_success=true; echo "✅ OK."
                 fi
             fi
@@ -133,28 +139,35 @@ EOF
 # run_with_autofix para runtime y errores rápidos
 run_with_autofix() {
     local cmd="$1"; local target_file="$2"; local mode="${3:-runtime}"; local max_retries=3; local attempt=1
-    mkdir -p .gemini/tmp
+    
+    # Rutas absolutas
+    local error_log="$AGENT_ROOT/.gemini/tmp/error.log"
+    local autofix_prompt_file="$AGENT_ROOT/.gemini/tmp/autofix_prompt.txt"
+    local ai_res_file="$AGENT_ROOT/.gemini/tmp/ai_res.txt"
+
+    mkdir -p "$AGENT_ROOT/.gemini/tmp"
     while [ $attempt -le $max_retries ]; do
         echo "🔄 Intento $attempt: Verificando $mode..."
-        run_with_timeout 120 "eval $cmd" > .gemini/tmp/error.log 2>&1
+        run_with_timeout 120 "eval $cmd" > "$error_log" 2>&1
         local status=$?
         
         if [ $status -eq 0 ] || [ $status -eq 124 ]; then
+            # Limpieza tras éxito
+            rm -f "$error_log" "$autofix_prompt_file" "$ai_res_file"
             return 0
         fi
         
         echo "❌ Fallo en $mode. Invocando IA para reparar $target_file..."
         # Guardar prompt en archivo temporal
-        local autofix_prompt_file=".gemini/tmp/autofix_prompt.txt"
-        echo "Repara el archivo $(cat "$target_file") basándose en este error: $(tail -n 20 .gemini/tmp/error.log). Devuelve solo el código completo corregido, sin comentarios, sin markdown." > "$autofix_prompt_file"
+        echo "Repara el archivo $(cat "$target_file") basándose en este error: $(tail -n 20 "$error_log"). Devuelve solo el código completo corregido, sin comentarios, sin markdown." > "$autofix_prompt_file"
         
         # Invocamos el puente pasándole la RUTA del archivo
-        run_with_timeout 60 "$AGENT_ROOT/.gemini/core/ai-bridge.sh" "gemini-3-flash-preview" "$autofix_prompt_file" > .gemini/tmp/ai_res.txt 2>/dev/null
+        run_with_timeout 60 "$AGENT_ROOT/.gemini/core/ai-bridge.sh" "gemini-3-flash-preview" "$autofix_prompt_file" > "$ai_res_file" 2>/dev/null
         
-        if [ $? -eq 0 ] && [ -s .gemini/tmp/ai_res.txt ]; then
+        if [ $? -eq 0 ] && [ -s "$ai_res_file" ]; then
             # Limpieza segura y robusta:
             # 1. Quitamos bloques markdown
-            local clean=$(cat .gemini/tmp/ai_res.txt | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
+            local clean=$(cat "$ai_res_file" | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
             
             # 2. Filtro de basura: Buscamos la primera linea que sea codigo real 
             # (import, export, @decorator, const, class, etc) y borramos lo anterior.
