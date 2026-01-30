@@ -11,7 +11,7 @@ NC='\033[0m'
 # Configurar rutas absolutas
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TPL_DIR="$ROOT_AGENT_DIR/.gemini/actions/templates-gateway"
+TPL_DIR="$ROOT_AGENT_DIR/.gemini/.templates/templates-gateway"
 ACTIONS_DIR=".gemini/actions"
 
 # Importar utilidades de IA si existen
@@ -47,21 +47,32 @@ sed -i '' "s/\"name\": \"$TEMP_DIR\"/\"name\": \"$NAME\"/" package.json 2>/dev/n
 cp "$TPL_DIR/main.ts.tpl" "src/main.ts"
 cp "$TPL_DIR/app.module.ts.tpl" "src/app.module.ts"
 
-# 5. Copiar carpeta commons, dto y archivos de configuración
-if [ -d "$TPL_DIR/commons" ]; then
-    echo -e "${BLUE}Copiando carpeta commons...${NC}"
-    cp -r "$TPL_DIR/commons" "src/"
-fi
+# 5. Copiar carpetas base y configuración (Manejo de TPL)
+echo -e "${BLUE}Copiando plantillas y configuraciones...${NC}"
 
-if [ -d "$TPL_DIR/dto" ]; then
-    echo -e "${BLUE}Copiando carpeta dto...${NC}"
-    cp -r "$TPL_DIR/dto" "src/"
-fi
-
-if [ -f "$TPL_DIR/.env" ]; then
-    echo -e "${BLUE}Copiando archivo .env...${NC}"
+# Copiar .env
+if [ -f "$TPL_DIR/.env.tpl" ]; then
+    cp "$TPL_DIR/.env.tpl" ".env"
+elif [ -f "$TPL_DIR/.env" ]; then
     cp "$TPL_DIR/.env" ".env"
 fi
+
+# Función para copiar y renombrar recursivamente
+copy_tpl_folder() {
+    local src_folder="$1"
+    local dest_folder="$2"
+
+    if [ -d "$src_folder" ]; then
+        echo -e "${BLUE}Copiando $(basename "$src_folder")...${NC}"
+        cp -r "$src_folder" "src/"
+        
+        # Renombrar recursivamente .tpl -> .ts en destino
+        find "src/$(basename "$src_folder")" -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}.ts"' _ {} \;
+    fi
+}
+
+copy_tpl_folder "$TPL_DIR/commons" "src/commons"
+copy_tpl_folder "$TPL_DIR/dto" "src/dto"
 
 # 6. Limpieza de boilerplate
 rm -f "src/app.controller.ts" "src/app.service.ts" "src/app.controller.spec.ts"

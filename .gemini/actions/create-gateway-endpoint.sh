@@ -23,7 +23,7 @@ to_pascal() {
 # Obtener ruta absoluta de la carpeta del agente
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TPL_DIR="$ROOT_AGENT_DIR/.gemini/actions/templates-gateway-endpoint"
+TPL_DIR="$ROOT_AGENT_DIR/.gemini/.templates/templates-gateway-endpoint"
 
 # El comando se asume que se corre en la raíz del proyecto Nest
 SRC_DIR="src"
