@@ -40,6 +40,10 @@ if [[ -d "$TPL_DIR/$ENDPOINT_NAME" ]]; then
   echo "📂 Detectada carpeta de template específica para '$ENDPOINT_NAME'. Copiando..."
   # Copiamos la carpeta completa al destino
   cp -r "$TPL_DIR/$ENDPOINT_NAME/"* "$ENDPOINT_DIR/"
+  
+  # Renombrar recursivamente .tpl -> .ts
+  find "$ENDPOINT_DIR" -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}.ts"' _ {} \;
+  
   echo "✅ Estructura copiada fielmente desde el template."
   SKIP_TPL=true
 fi

@@ -9,7 +9,9 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 if [ -z "$NAME" ]; then
-    read -p "Nombre del servicio (kebab-case): " NAME
+    CURRENT_FOLDER=$(basename "$PWD")
+    read -p "Nombre del servicio [$CURRENT_FOLDER]: " INPUT_NAME
+    NAME="${INPUT_NAME:-$CURRENT_FOLDER}"
 fi
 
 echo -e "${BLUE}Iniciando generación de '$NAME' en el directorio actual...${NC}"

@@ -20,7 +20,9 @@ if [ -f "$ROOT_AGENT_DIR/.gemini/core/utils.sh" ]; then
 fi
 
 if [ -z "$NAME" ]; then
-    read -p "Nombre del API Gateway (kebab-case): " NAME
+    CURRENT_FOLDER=$(basename "$PWD")
+    read -p "Nombre del API Gateway [$CURRENT_FOLDER]: " INPUT_NAME
+    NAME="${INPUT_NAME:-$CURRENT_FOLDER}"
 fi
 
 # 1. Crear proyecto Nest base en temporal
@@ -86,11 +88,32 @@ dev-agent.sh
 .gemini/
 EOF
 
-# 8. Crear endpoint obligatorio config-site
-echo -e "${YELLOW}Generando endpoint obligatorio 'config-site'...${NC}"
+# 8. Generación Dinámica de Endpoints (Escaneo de Templates)
+echo -e "${YELLOW}Generando endpoints detectados en templates...${NC}"
 mkdir -p src/endpoint
-# Usar ruta relativa correcta ya que estamos en root
-bash "$ACTIONS_DIR/create-gateway-endpoint.sh" "config-site" "getConfig" "" "Get" "CONFIG_SERVICE_URL" "/site/configuration" "/v1"
+
+# Ruta de los templates de endpoints
+ENDPOINTS_TPL_DIR="$ROOT_AGENT_DIR/.gemini/.templates/templates-gateway-endpoint"
+
+if [ -d "$ENDPOINTS_TPL_DIR" ]; then
+    # Iterar sobre cada carpeta dentro de templates-gateway-endpoint
+    for d in "$ENDPOINTS_TPL_DIR"/*/; do
+        if [ -d "$d" ]; then
+            ENDPOINT_NAME=$(basename "$d")
+            
+            # Evitar archivos sueltos o carpetas ocultas
+            [[ "$ENDPOINT_NAME" == .* ]] && continue
+            
+            echo -e "${BLUE}>>> Instalando módulo '$ENDPOINT_NAME'...${NC}"
+            
+            # Ejecutar el script de creación para este endpoint
+            # Nota: Los argumentos extras (método, ruta, url) se tomarán por defecto o del template si existe
+            bash "$ACTIONS_DIR/create-gateway-endpoint.sh" "$ENDPOINT_NAME" "DefaultMethod" "default-route" "Get" "SERVICE_URL" "/api" "/v1"
+        fi
+    done
+else
+    echo -e "${RED}⚠ No se encontraron templates de endpoints en $ENDPOINTS_TPL_DIR${NC}"
+fi
 
 # 9. Bucle de Auto-Reparación de Dependencias
 echo -e "${BLUE}Iniciando ciclo de auto-reparación de dependencias...${NC}"

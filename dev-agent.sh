@@ -81,7 +81,19 @@ case "$1" in
     new-service)
         check_environment
         echo -e "${YELLOW}>>> Iniciando Generación de Servicio${NC}"
-        read -p "Lenguaje (nestjs/java/python): " LANG
+        
+        echo -e "\nSelecciona el lenguaje:"
+        echo "1) NestJS (TypeScript - Hexagonal)"
+        echo "2) Java (Spring Boot)"
+        echo "3) Python (FastAPI)"
+        read -p "Opción (1-3): " LANG_OPT
+
+        case "$LANG_OPT" in
+            1) LANG="nestjs" ;;
+            2) LANG="java" ;;
+            3) LANG="python" ;;
+            *) echo -e "${RED}Opción inválida.${NC}"; exit 1 ;;
+        esac
         
         if [ "$LANG" == "nestjs" ]; then
             echo -e "\nSelecciona el tipo de template:"
