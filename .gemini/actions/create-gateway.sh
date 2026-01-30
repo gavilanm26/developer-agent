@@ -106,9 +106,8 @@ if [ -d "$ENDPOINTS_TPL_DIR" ]; then
             
             echo -e "${BLUE}>>> Instalando módulo '$ENDPOINT_NAME'...${NC}"
             
-            # Ejecutar el script de creación para este endpoint
-            # Nota: Los argumentos extras (método, ruta, url) se tomarán por defecto o del template si existe
-            bash "$ACTIONS_DIR/create-gateway-endpoint.sh" "$ENDPOINT_NAME" "DefaultMethod" "default-route" "Get" "SERVICE_URL" "/api" "/v1"
+            # Ejecutar el script de creación para este endpoint usando RUTA ABSOLUTA
+            bash "$ROOT_AGENT_DIR/$ACTIONS_DIR/create-gateway-endpoint.sh" "$ENDPOINT_NAME" "DefaultMethod" "default-route" "Get" "SERVICE_URL" "/api" "/v1"
         fi
     done
 else
@@ -164,6 +163,9 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
 done
 
 rm -f build_output.log
+
+# 10. Aplicar Templates Globales
+apply_global_templates "."
 
 if [ "$SUCCESS" = true ]; then
     echo -e "${BLUE}🚀 Verificación de Runtime Obligatoria (Regla runtime-verification.md)...${NC}"

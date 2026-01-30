@@ -73,10 +73,24 @@ dev-agent.sh
 EOF
 
 # 7. Lógica condicional 'auth'
+# Configurar rutas absolutas para importar utils
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Importar utilidades
+if [ -f "$ROOT_AGENT_DIR/.gemini/core/utils.sh" ]; then
+    source "$ROOT_AGENT_DIR/.gemini/core/utils.sh"
+fi
+
 if [[ "$NAME" == *"auth"* ]]; then
     echo -e "${YELLOW}Detectado servicio de autenticación. Creando módulo 'auth'...${NC}"
     $NEST_CMD g mo auth
     mkdir -p "src/auth"/{application/service,domain/{interfaces,ports},infrastructure/{controller,repository/helpers,adapter,dto}}
+fi
+
+# Aplicar Templates Globales
+if type apply_global_templates >/dev/null 2>&1; then
+    apply_global_templates "."
 fi
 
 echo -e "${GREEN}✔ Microservicio '$NAME' listo en la raíz.${NC}"

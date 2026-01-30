@@ -41,6 +41,26 @@ get_problematic_files_with_details() {
     grep -E "\.ts[[:space:]]*|" "$log_file" | awk -F'|' '$2 !~ /100/ {print $1 ":" $2 "%:Lines:" $6}' | sed 's/[[:space:]]//g'
 }
 
+# --- UTILIDADES DE TEMPLATES ---
+apply_global_templates() {
+    local target_dir="$1"
+    local global_tpl_dir="$AGENT_ROOT/.gemini/.templates/global"
+    local BLUE='\033[0;34m'
+    local NC='\033[0m'
+
+    if [ -d "$global_tpl_dir" ] && [ "$(ls -A "$global_tpl_dir")" ]; then
+        echo -e "${BLUE}🌍 Aplicando templates globales...${NC}"
+        
+        # Copiar contenido recursivamente
+        cp -R "$global_tpl_dir/"* "$target_dir/" 2>/dev/null
+        cp -R "$global_tpl_dir/."* "$target_dir/" 2>/dev/null
+        
+        # Renombrar recursivamente quitando .tpl (Generic Rename)
+        # Ejemplo: Dockerfile.tpl -> Dockerfile, .env.tpl -> .env
+        find "$target_dir" -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
+    fi
+}
+
 # --- GARANTE DE CALIDAD E INTEGRIDAD ---
 ensure_quality_standards() {
     local test_cmd="npm run test:cov"
