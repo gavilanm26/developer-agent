@@ -23,58 +23,68 @@ if [ -z "$NAME" ]; then
     read -p "Nombre del API Gateway (kebab-case): " NAME
 fi
 
-# 1. Crear proyecto Nest base
-echo -e "${BLUE}Creando proyecto base con Nest CLI...${NC}"
+# 1. Crear proyecto Nest base en temporal
+echo -e "${BLUE}Creando proyecto base con Nest CLI (temp)...${NC}"
+TEMP_DIR="temp_gateway_scaffold"
+rm -rf "$TEMP_DIR"
+
 if command -v nest >/dev/null 2>&1; then
-    nest new "$NAME" --strict --skip-git --package-manager npm
+    nest new "$TEMP_DIR" --strict --skip-git --package-manager npm >/dev/null
 else
-    npx @nestjs/cli new "$NAME" --strict --skip-git --package-manager npm
+    npx @nestjs/cli new "$TEMP_DIR" --strict --skip-git --package-manager npm >/dev/null
 fi
 
-# 2. Inyectar Main y AppModule
-cp "$TPL_DIR/main.ts.tpl" "$NAME/src/main.ts"
-cp "$TPL_DIR/app.module.ts.tpl" "$NAME/src/app.module.ts"
+# 2. Mover a la raíz
+echo -e "${BLUE}Migrando archivos a la raíz...${NC}"
+cp -R "$TEMP_DIR/"* . 2>/dev/null
+cp -R "$TEMP_DIR/."* . 2>/dev/null
+rm -rf "$TEMP_DIR"
 
-# 3. Copiar carpeta commons, dto y archivos de configuración
+# 3. Renombrar en package.json
+sed -i '' "s/\"name\": \"$TEMP_DIR\"/\"name\": \"$NAME\"/" package.json 2>/dev/null || sed -i "s/\"name\": \"$TEMP_DIR\"/\"name\": \"$NAME\"/" package.json
+
+# 4. Inyectar Main y AppModule
+cp "$TPL_DIR/main.ts.tpl" "src/main.ts"
+cp "$TPL_DIR/app.module.ts.tpl" "src/app.module.ts"
+
+# 5. Copiar carpeta commons, dto y archivos de configuración
 if [ -d "$TPL_DIR/commons" ]; then
     echo -e "${BLUE}Copiando carpeta commons...${NC}"
-    cp -r "$TPL_DIR/commons" "$NAME/src/"
+    cp -r "$TPL_DIR/commons" "src/"
 fi
 
 if [ -d "$TPL_DIR/dto" ]; then
     echo -e "${BLUE}Copiando carpeta dto...${NC}"
-    cp -r "$TPL_DIR/dto" "$NAME/src/"
+    cp -r "$TPL_DIR/dto" "src/"
 fi
 
 if [ -f "$TPL_DIR/.env" ]; then
     echo -e "${BLUE}Copiando archivo .env...${NC}"
-    cp "$TPL_DIR/.env" "$NAME/.env"
+    cp "$TPL_DIR/.env" ".env"
 fi
 
-# 4. Limpieza de boilerplate
-rm -f "$NAME/src/app.controller.ts" "$NAME/src/app.service.ts" "$NAME/src/app.controller.spec.ts"
+# 6. Limpieza de boilerplate
+rm -f "src/app.controller.ts" "src/app.service.ts" "src/app.controller.spec.ts"
 
-# 5. Gitignore
-cat <<EOF > "$NAME/.gitignore"
-/dist
-/node_modules
-.env
-.DS_Store
+# 7. Gitignore (Append)
+cat <<EOF >> ".gitignore"
+
+# Developer Agent
 AGENT.md
 dev-agent.sh
 .gemini/
 EOF
 
-# 6. Crear endpoint obligatorio config-site
+# 8. Crear endpoint obligatorio config-site
 echo -e "${YELLOW}Generando endpoint obligatorio 'config-site'...${NC}"
-cd "$NAME"
 mkdir -p src/endpoint
-bash "../$ACTIONS_DIR/create-gateway-endpoint.sh" "config-site" "getConfig" "" "Get" "CONFIG_SERVICE_URL" "/site/configuration" "/v1"
+# Usar ruta relativa correcta ya que estamos en root
+bash "$ACTIONS_DIR/create-gateway-endpoint.sh" "config-site" "getConfig" "" "Get" "CONFIG_SERVICE_URL" "/site/configuration" "/v1"
 
-# 7. Bucle de Auto-Reparación de Dependencias
+# 9. Bucle de Auto-Reparación de Dependencias
 echo -e "${BLUE}Iniciando ciclo de auto-reparación de dependencias...${NC}"
 
-# Instalación inicial de las más obvias para ahorrar tiempo
+# Instalación inicial de las más obvias
 echo -e "${YELLOW}Instalando bases (dotenv, axios, class-validator)...${NC}"
 npm install --save dotenv @nestjs/config @nestjs/axios axios class-validator class-transformer @nestjs/platform-express
 
@@ -85,15 +95,12 @@ SUCCESS=false
 while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
     echo -e "${BLUE}Intento de compilación $((RETRY_COUNT+1))/$MAX_RETRIES...${NC}"
     
-    # Intentamos compilar el proyecto
-    # Guardamos el error en un archivo temporal
     npm run build > build_output.log 2>&1
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✔ El servicio ha compilado correctamente.${NC}"
         SUCCESS=true
     else
-        # Buscamos el error "Cannot find module 'X'" o "Cannot find type definition for 'X'"
         MISSING_MODULE=$(grep -oE "Cannot find module '@?[a-zA-Z0-9/-]+'|Could not find a declaration file for module '@?[a-zA-Z0-9/-]+'" build_output.log | head -1 | grep -oE "'@?[a-zA-Z0-9/-]+'" | tr -d "'")
         
         if [ -n "$MISSING_MODULE" ]; then
@@ -101,19 +108,17 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
             npm install --save "$MISSING_MODULE"
             RETRY_COUNT=$((RETRY_COUNT+1))
         else
-            # Intentar identificar el archivo culpable (buscando src/*.ts en el log)
             FAILED_FILE=$(grep -oE "src/[a-zA-Z0-9/._-]+\.ts" build_output.log | head -1)
 
             if [ -n "$FAILED_FILE" ] && type run_with_autofix >/dev/null 2>&1; then
                 echo -e "${YELLOW}🤖 Error de sintaxis o lógica detectado en $FAILED_FILE. Invocando Agente IA...${NC}"
                 
-                # Invocamos la utilidad de IA
                 if run_with_autofix "npm run build" "$FAILED_FILE"; then
                     SUCCESS=true
                     break
                 else
-                    echo -e "${RED}✘ La IA no pudo arreglar el código (posible falta de cuota). Abortando para ahorrar tiempo.${NC}"
-                    break # SALIDA INMEDIATA si la IA falla
+                    echo -e "${RED}✘ La IA no pudo arreglar el código. Abortando.${NC}"
+                    break
                 fi
             else
                 echo -e "${RED}✘ Error de compilación no recuperable o IA no disponible.${NC}"
@@ -125,15 +130,11 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
 done
 
 rm -f build_output.log
-cd ..
 
 if [ "$SUCCESS" = true ]; then
     echo -e "${BLUE}🚀 Verificación de Runtime Obligatoria (Regla runtime-verification.md)...${NC}"
     
-    # Entramos al directorio con ruta absoluta
-    cd "$ROOT_AGENT_DIR/$NAME" || exit
-    
-    # Validar integridad de AppModule antes de arrancar
+    # Validar integridad de AppModule
     echo -e "${BLUE}🔍 Validando integridad de AppModule...${NC}"
     if grep -q "@Module" src/app.module.ts && grep -q "ConfigSiteModule" src/app.module.ts; then
         echo -e "${GREEN}✔ AppModule validado correctamente.${NC}"
@@ -142,7 +143,6 @@ if [ "$SUCCESS" = true ]; then
         run_with_autofix "grep '@Module' src/app.module.ts && grep 'ConfigSiteModule' src/app.module.ts" "src/app.module.ts"
     fi
 
-    # Verificación de Runtime Simplificada
     echo -e "${BLUE}Iniciando servidor para prueba de vida (15s)...${NC}"
     npm run start:dev > runtime.log 2>&1 &
     SERVER_PID=$!
@@ -161,16 +161,16 @@ if [ "$SUCCESS" = true ]; then
     if [ "$SUCCESS_RUNTIME" = true ]; then
         echo -e "${GREEN}✅ API Gateway '$NAME' verificado en runtime exitosamente.${NC}"
         
-        # NUEVO: Verificación de Tests y Cobertura
         echo -e "${BLUE}🧪 Iniciando verificación de Testing y Cobertura (95% min)...${NC}"
-        # Intentamos arreglar el test del controlador base si la cobertura es baja
-        if run_with_autofix "npm run test:cov" "src/endpoint/config-site/infrastructure/controller/config-site.controller.spec.ts" "test"; then
+        # Ruta corregida del test
+        TEST_FILE="src/endpoint/config-site/infrastructure/controller/config-site.controller.spec.ts"
+        if run_with_autofix "npm run test:cov" "$TEST_FILE" "test"; then
             echo -e "${GREEN}✅ API Gateway '$NAME' cumple con el 95% de cobertura.${NC}"
         else
             echo -e "${RED}❌ El Gateway no alcanzó la cobertura mínima del 95% o los tests fallan.${NC}"
         fi
     else
-        echo -e "${RED}❌ Error de Runtime crítico. El servicio no arranca tras reparaciones.${NC}"
+        echo -e "${RED}❌ Error de Runtime crítico.${NC}"
     fi
 else
     echo -e "${YELLOW}⚠ El Gateway no pudo ser verificado en runtime porque falló la compilación.${NC}"
