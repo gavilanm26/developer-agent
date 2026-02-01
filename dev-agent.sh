@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# --- Configuración ---
-AGENT_DIR=".gemini"
+# --- Configuración de Rutas (Absolutas para Portabilidad) ---
+INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENT_DIR="$INSTALL_DIR/.gemini"
 ACTIONS_DIR="$AGENT_DIR/actions"
 
 # Colores
@@ -11,12 +12,13 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Cargar variables de entorno desde .env si existe
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+# Cargar variables de entorno desde el directorio de instalación
+if [ -f "$INSTALL_DIR/.env" ]; then
+    export $(grep -v '^#' "$INSTALL_DIR/.env" | xargs)
 fi
 
-chmod +x $ACTIONS_DIR/*.sh 2>/dev/null
+# Asegurar permisos de ejecución en las acciones
+chmod +x "$ACTIONS_DIR"/*.sh 2>/dev/null
 
 check_environment() {
     # Si hay API KEY, el entorno es válido
@@ -42,42 +44,35 @@ setup_agent() {
 
     if [ "$AUTH_OPT" == "1" ]; then
         read -p "Pega tu GEMINI_API_KEY: " USER_KEY
-        echo "GEMINI_API_KEY=$USER_KEY" >> .env
-        echo -e "${GREEN}✅ Key guardada en .env (No se requiere Node.js)${NC}"
+        echo "GEMINI_API_KEY=$USER_KEY" >> "$INSTALL_DIR/.env"
+        echo -e "${GREEN}✅ Key guardada en .env${NC}"
     else
-        # Verificar si npm existe antes de intentar instalar el CLI
         if ! command -v npm >/dev/null 2>&1; then
-            echo -e "${RED}❌ Error: Para usar el navegador necesitas Node.js y npm instalados.${NC}"
-            echo "Por favor, usa la Opción 1 (API KEY) si no deseas instalar Node.js."
+            echo -e "${RED}❌ Error: Necesitas Node.js instalado.${NC}"
             exit 1
         fi
-
-        # Instalar Gemini CLI si falta
         if ! command -v gemini >/dev/null 2>&1; then
-            echo "Instalando Gemini CLI globalmente..."
             npm install -g @google/gemini-cli
         fi
-        echo "Iniciando sesión..."
         gemini login
     fi
-
-    echo -e "${GREEN}✅ Agente configurado y listo para trabajar.${NC}"
+    echo -e "${GREEN}✅ Agente configurado.${NC}"
 }
 
 show_help() {
     echo -e "${BLUE}Developer Agent CLI${NC}"
     echo "Comandos:"
-    echo "  init          Configura el entorno (CLI, Login, etc.)"
-    echo "  new-service   Inicia un nuevo microservicio o gateway"
+    echo "  init          Configura el entorno"
+    echo "  new-service   Crea un nuevo microservicio o gateway"
     echo "  new-endpoint  Crea un endpoint en un API Gateway"
     echo "  new-module    Crea un módulo en un microservicio"
     echo "  help          Ayuda"
 }
- 
+
 case "$1" in
     init)
         setup_agent
-        ;;
+        ;; 
     new-service)
         check_environment
         echo -e "${YELLOW}>>> Iniciando Generación de Servicio${NC}"
@@ -89,10 +84,10 @@ case "$1" in
         read -p "Opción (1-3): " LANG_OPT
 
         case "$LANG_OPT" in
-            1) LANG="nestjs" ;;
-            2) LANG="java" ;;
-            3) LANG="python" ;;
-            *) echo -e "${RED}Opción inválida.${NC}"; exit 1 ;;
+            1) LANG="nestjs" ;; 
+            2) LANG="java" ;; 
+            3) LANG="python" ;; 
+            *) echo -e "${RED}Opción inválida.${NC}"; exit 1 ;; 
         esac
         
         if [ "$LANG" == "nestjs" ]; then
@@ -105,7 +100,7 @@ case "$1" in
 
             case "$TYPE_OPT" in
                 1)
-                    ./$ACTIONS_DIR/create-service-nestjs.sh
+                    bash "$ACTIONS_DIR/create-service-nestjs.sh"
                     ;; 
                 2)
                     echo -e "\nTipo de API Gateway:"
@@ -114,13 +109,13 @@ case "$1" in
                     read -p "Opción (1-2): " GW_TYPE_OPT
                     
                     if [ "$GW_TYPE_OPT" == "1" ]; then
-                        ./$ACTIONS_DIR/create-gateway.sh "" "rest"
+                        bash "$ACTIONS_DIR/create-gateway.sh" "" "rest"
                     else
-                        ./$ACTIONS_DIR/create-gateway.sh "" "hybrid"
+                        bash "$ACTIONS_DIR/create-gateway.sh" "" "hybrid"
                     fi
                     ;; 
                 *)
-                    ./$ACTIONS_DIR/create-service-nestjs.sh # Fallback al estándar por ahora
+                    bash "$ACTIONS_DIR/create-service-nestjs.sh"
                     ;; 
             esac
         else
@@ -129,11 +124,11 @@ case "$1" in
         ;; 
 
     new-endpoint)
-        ./$ACTIONS_DIR/create-gateway-endpoint.sh "$2" "$3" "$4" "$5" "$6" "$7" "$8"
+        bash "$ACTIONS_DIR/create-gateway-endpoint.sh" "$2" "$3" "$4" "$5" "$6" "$7" "$8"
         ;; 
 
     new-module)
-        ./$ACTIONS_DIR/create-module-nestjs.sh "$2"
+        bash "$ACTIONS_DIR/create-module-nestjs.sh" "$2"
         ;; 
 
     help|*)
