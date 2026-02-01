@@ -1,0 +1,26 @@
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+} from '@nestjs/common';
+import { Request } from 'express';
+
+import { {{SERVICE_PASCAL}}ImplService } from '../../application/{{SERVICE_KEBAB}}.impl.service';
+import { ResponseDto } from '../../../dto/response';
+import { RequestDto } from '../../../dto/request';
+
+@Controller('{{ROUTE_PATH}}')
+export class {{SERVICE_PASCAL}}Controller {
+  constructor(
+    private readonly service: {{SERVICE_PASCAL}}ImplService,
+  ) {}
+
+  @Post()
+  async execute(
+    @Body() body: RequestDto,
+    @Req() req: Request,
+  ): Promise<ResponseDto> {
+    return this.service.execute(body, req);
+  }
+}

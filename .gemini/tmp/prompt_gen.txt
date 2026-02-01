@@ -1,0 +1,3 @@
+ERES UN ARQUITECTO NESTJS. Transforma este template GENERICO al módulo 'products'.
+            Reglas: 1. Cambia 'Endpoint' a 'Products'. 2. Usa @commons, @dto. 3. Metodo: default.
+            TEMPLATE: export class {{ENDPOINT_PASCAL}}Dto {}
