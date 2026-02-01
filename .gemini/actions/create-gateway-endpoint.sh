@@ -37,8 +37,8 @@ if [[ -d "$TPL_DIR/$ENDPOINT_NAME" ]]; then
   echo "📂 Detectada carpeta de template específica para '$ENDPOINT_NAME'. Copiando..."
   cp -r "$TPL_DIR/$ENDPOINT_NAME/"* "$ENDPOINT_DIR/"
   
-  # Quitar extensión .tpl recursivamente
-  find "$ENDPOINT_DIR" -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
+  # Quitar extensión .tpl recursivamente (Ignorando .gemini)
+  find "$ENDPOINT_DIR" -path "*/.gemini" -prune -o -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
   
   # Limpieza de GraphQL si estamos en modo REST
   if [ "$GW_MODE" == "rest" ]; then

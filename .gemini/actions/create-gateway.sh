@@ -47,8 +47,8 @@ copy_tpl_folder() {
     if [ -d "$src_folder" ]; then
         mkdir -p "src/$dest_subpath"
         cp -r "$src_folder/"* "src/$dest_subpath/"
-        # Quitar extensión .tpl recursivamente
-        find "src/$dest_subpath" -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
+        # Quitar extensión .tpl recursivamente (Ignorando .gemini por seguridad)
+        find "src/$dest_subpath" -path "*/.gemini" -prune -o -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
     fi
 }
 
