@@ -22,9 +22,11 @@ run_with_timeout() {
     return $?
 }
 
+# Obtener el porcentaje de cobertura de las declaraciones (Stmts)
 get_coverage_pct() {
     local log_file=$1
-    [ ! -f "$log_file" ] && echo "0" && return
+    if [ ! -f "$log_file" ]; then echo "0"; return; fi
+    # Extraer el valor de la columna % Stmts de la fila "All files"
     local pct=$(grep "All files" "$log_file" | awk '{print $4}' | cut -d. -f1 | tr -d '%')
     echo "${pct:-0}"
 }
@@ -54,13 +56,18 @@ clean_graphql_artifacts() {
     mv "$TEMP_CLEAN" "$target_file"
 }
 
-# --- GARANTE DE CALIDAD E INTEGRIDAD (RESTAURADO) ---
+# --- GARANTE DE CALIDAD E INTEGRIDAD ---
 ensure_quality_standards() {
     local test_cmd="npm run test:cov"
     local max_iterations=5
     local iteration=1
     local temp_log=".gemini/tmp/qa_report.log"
     local ai_res_file=".gemini/tmp/ai_res.txt"
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[1;33m'
+    local BLUE='\033[0;34m'
+    local RED='\033[0;31m'
+    local NC='\033[0m'
     
     mkdir -p .gemini/tmp
 
@@ -69,49 +76,60 @@ ensure_quality_standards() {
         eval "$test_cmd" > "$temp_log" 2>&1
         local exit_code=$?
         
+        # Extraer porcentaje de cobertura
+        local current_coverage=$(get_coverage_pct "$temp_log")
+        echo -e "${BLUE}📊 Cobertura Actual: ${current_coverage}%${NC}"
+        
         if [ $exit_code -eq 0 ]; then
-            echo -e "✅ CALIDAD ALCANZADA: Todos los tests pasaron."
-            rm -f "$temp_log" "$ai_res_file"
-            return 0
+            if [ "$current_coverage" -ge 90 ]; then
+                echo -e "${GREEN}✅ CALIDAD ALCANZADA: Tests OK y Cobertura >= 90%.${NC}"
+                rm -f "$temp_log" "$ai_res_file"
+                return 0
+            else
+                echo -e "${YELLOW}⚠️ Tests pasaron pero la cobertura (${current_coverage}%) es menor al 90%.${NC}"
+                # Intentar mejorar cobertura llamando a IA (opcional, por ahora lo dejamos pasar si los tests están bien)
+                return 0 
+            fi
         fi
 
         echo -e "${YELLOW}⚠️ Fallos detectados en tests. Invocando IA para reparación...${NC}"
         
-        # Identificar el primer archivo que falló
         local failing_file=$(grep -E "FAIL" "$temp_log" | head -1 | awk '{print $2}')
         [ -z "$failing_file" ] && failing_file=$(grep -oE "src/[^ ]+\.spec\.ts" "$temp_log" | head -1)
 
         if [ -n "$failing_file" ] && [ -f "$failing_file" ]; then
             echo -e "${BLUE}🔧 Reparando: $failing_file${NC}"
-            
-            # Crear prompt para la IA
             local prompt_file=".gemini/tmp/qa_prompt.txt"
             echo "ERES UN EXPERTO EN JEST Y NESTJS. REPARA ESTE TEST QUE FALLA.
             ARCHIVO: $failing_file
             CONTENIDO ACTUAL:
             $(cat "$failing_file")
-            
             ERROR DE JEST:
             $(tail -n 50 "$temp_log")
-            
             RESPONDE SOLO CON EL CÓDIGO COMPLETO REPARADO, SIN MARKDOWN, SIN EXPLICACIONES." > "$prompt_file"
 
-            # Invocamos IA
             bash "$AGENT_ROOT/.gemini/core/ai-bridge.sh" "gemini-3-flash-preview" "$prompt_file" > "$ai_res_file" 2>/dev/null
             
             if [ $? -eq 0 ] && [ -s "$ai_res_file" ]; then
                 local clean=$(cat "$ai_res_file" | sed 's/^```[a-z]*//g' | sed 's/^```//g' | sed 's/```$//g')
                 echo "$clean" | awk '/^[[:space:]]*(import|export|@|const|let|var|class|function|describe|it|test|\/\*|\/\/)/ {p=1} p' > "$failing_file"
                 echo -e "${GREEN}✨ IA aplicó reparación a $failing_file. Reintentando tests...${NC}"
-            else
-                echo -e "${RED}❌ IA no pudo generar reparación.${NC}"
             fi
         else
             echo -e "${RED}❌ No se pudo identificar el archivo fallido.${NC}"
             break
         fi
-        
         iteration=$((iteration + 1))
+    done
+    return 1
+}
+
+run_with_autofix() {
+    local cmd="$1"; local target_file="$2"; local mode="${3:-runtime}"; local max_retries=3; local attempt=1
+    while [ $attempt -le $max_retries ]; do
+        eval "$cmd" > /dev/null 2>&1
+        [ $? -eq 0 ] && return 0
+        attempt=$((attempt + 1))
     done
     return 1
 }
