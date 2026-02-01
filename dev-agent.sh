@@ -73,7 +73,7 @@ show_help() {
     echo "  new-module    Crea un módulo en un microservicio"
     echo "  help          Ayuda"
 }
-
+ 
 case "$1" in
     init)
         setup_agent
@@ -108,7 +108,16 @@ case "$1" in
                     ./$ACTIONS_DIR/create-service-nestjs.sh
                     ;; 
                 2)
-                    ./$ACTIONS_DIR/create-gateway.sh
+                    echo -e "\nTipo de API Gateway:"
+                    echo "1) Solo REST (Ligero)"
+                    echo "2) Híbrido (REST + GraphQL)"
+                    read -p "Opción (1-2): " GW_TYPE_OPT
+                    
+                    if [ "$GW_TYPE_OPT" == "1" ]; then
+                        ./$ACTIONS_DIR/create-gateway.sh "" "rest"
+                    else
+                        ./$ACTIONS_DIR/create-gateway.sh "" "hybrid"
+                    fi
                     ;; 
                 *)
                     ./$ACTIONS_DIR/create-service-nestjs.sh # Fallback al estándar por ahora

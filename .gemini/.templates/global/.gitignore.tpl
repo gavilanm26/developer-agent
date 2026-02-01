@@ -1,16 +1,16 @@
-# compiled output
+# Compiled output
 /dist
 /node_modules
 /build
-Dockerfile.backend
+
 # Logs
 logs
 *.log
 npm-debug.log*
-pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-lerna-debug.log*
+runtime.log
+build_output.log
 
 # OS
 .DS_Store
@@ -19,46 +19,15 @@ lerna-debug.log*
 /coverage
 /.nyc_output
 
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
+# IDEs
+.vscode/
+.idea/
 *.sublime-workspace
 
-# IDE - VSCode
-.vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# dotenv environment variable files
+# Env
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
 
-# temp directory
-.temp
-.tmp
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# Ignorar archivos de Docker locales
-.dockerignore
-/docker-compose.yml
-/Dockerfile
-
+# Developer Agent
+AGENT.md
 dev-agent.sh
-.gemini
+.gemini/

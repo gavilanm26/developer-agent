@@ -18,7 +18,6 @@ describe('Validate', () => {
   it('should return true if the token matches the environment variable', () => {
     const token = process.env.APPAUTHKEY;
 
-    // @ts-expect-error
     const result = validate.token(token);
 
     expect(result).toBe(true);

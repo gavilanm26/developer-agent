@@ -58,8 +58,7 @@ describe('MsIdentityAuth', () => {
   });
 
   it('should throw an error if the httpService post call fails', async () => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
+
     const authRequestDto: AuthRequestDto = { data: undefined };
     const error = { response: { data: 'error' } };
     const req: Request = {

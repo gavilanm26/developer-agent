@@ -13,6 +13,7 @@ import { JwtStrategy } from './infrastructure/strategy/jwt.strategy';
 import { MsIdentityAuth } from './infrastructure/adapter/ms-identity-auth';
 import { HttpModule } from '@nestjs/axios';
 import { TokenKycService } from './application/token-kyc-service.service';
+import { Algorithm } from 'jsonwebtoken';
 
 @Module({
   imports: [
@@ -20,8 +21,8 @@ import { TokenKycService } from './application/token-kyc-service.service';
       privateKey: jwtConfig.privateKey,
       publicKey: jwtConfig.publicKey,
       signOptions: {
-        expiresIn: jwtConfig.expiresIn,
-        algorithm: jwtConfig.algorithm,
+        expiresIn: jwtConfig.expiresIn as any,
+        algorithm: jwtConfig.algorithm as Algorithm,
       },
     }),
     PassportModule,

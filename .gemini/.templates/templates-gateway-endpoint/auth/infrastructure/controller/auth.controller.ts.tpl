@@ -2,7 +2,7 @@ import { Controller, Post, Body, HttpCode, Req } from '@nestjs/common';
 import { AuthService } from '../../domain/auth.service';
 import { ResponseDto } from '../../../../dto/response';
 import { AuthRequestDto } from '../../domain/request';
-import { RequestWithClientIp } from '../../../../commons/types/request-with-client-ip.interface';
+import type { RequestWithClientIp } from '../../../../commons/types/request-with-client-ip.interface';
 
 @Controller('v1')
 export class AuthController {

@@ -27,7 +27,9 @@ export class CryptoResponseInterceptor implements NestInterceptor {
       map((data) => {
         if (
           !request?.url.startsWith('/health') &&
+          // <<GQL
           !request?.url.startsWith('/graphql') &&
+          // GQL>>
           !request?.url.startsWith('/reports')
         )
           if (data !== undefined && data !== null) {
@@ -40,4 +42,26 @@ export class CryptoResponseInterceptor implements NestInterceptor {
   }
 }
 
+// <<GQL
+export class CryptoRequestGraphqlInterceptor implements NestInterceptor {
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<any> {
+    const gqlCtx = (context as any).getArgs()[2];
+    const info = gqlCtx?.info;
+    const args = gqlCtx?.args;
 
+    if (info?.fieldName && args?.data) {
+      const decrypt = Crypto.decrypt(args.data);
+      try {
+        args.data = JSON.parse(decrypt);
+      } catch (error) {
+        args.data = decrypt;
+      }
+    }
+
+    return next.handle();
+  }
+}
+// GQL>>
