@@ -17,6 +17,11 @@ if [[ -z "$ENDPOINT_NAME" ]]; then
   exit 1
 fi
 
+if [[ "$ENDPOINT_NAME" == "base-endpoint" ]]; then
+  echo "❌ Error: 'base-endpoint' es un template de referencia y no puede ser usado como nombre de módulo."
+  exit 1
+fi
+
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -58,17 +63,17 @@ if [[ -d "$TPL_DIR/$ENDPOINT_NAME" ]]; then
 else
     echo -e "${YELLOW}🤖 Generando código inteligente para '$ENDPOINT_NAME'...${NC}"
     FILES=(
-        "endpoint.controller.ts.tpl:infrastructure/controller/${ENDPOINT_NAME}.controller.ts"
-        "impl.service.ts.tpl:application/service/${ENDPOINT_NAME}.impl.service.ts"
-        "domain.adapter.ts.tpl:domain/ports/${ENDPOINT_NAME}.adapter.ts"
-        "ms.adapter.ts.tpl:infrastructure/adapter/ms-${ENDPOINT_NAME}.impl.adapter.ts"
-        "dto.ts.tpl:infrastructure/dto/${ENDPOINT_NAME}.dto.ts"
+        "base-endpoint/infrastructure/controller/{{SERVICE_KEBAB}}.controller.ts.tpl:infrastructure/controller/${ENDPOINT_NAME}.controller.ts"
+        "base-endpoint/application/{{SERVICE_KEBAB}}.impl.service.ts.tpl:application/service/${ENDPOINT_NAME}.impl.service.ts"
+        "base-endpoint/domain/{{SERVICE_KEBAB}}.adapter.ts.tpl:domain/ports/${ENDPOINT_NAME}.adapter.ts"
+        "base-endpoint/infrastructure/adapter/ms-{{SERVICE_KEBAB}}.adapter.ts.tpl:infrastructure/adapter/ms-${ENDPOINT_NAME}.impl.adapter.ts"
+        "base-endpoint/{{SERVICE_KEBAB}}.module.ts.tpl:${ENDPOINT_NAME}.module.ts"
     )
     for entry in "${FILES[@]}"; do
         TPL_FILE="${entry%%:*}"; TARGET_FILE="${entry#*:}"
         if [ -f "$TPL_DIR/$TPL_FILE" ]; then
             PROMPT="ERES UN ARQUITECTO NESTJS. Transforma este template GENERICO al módulo '$ENDPOINT_NAME'.
-            Reglas: 1. Cambia 'Endpoint' a '$(to_pascal "$ENDPOINT_NAME")'. 2. Usa @commons, @dto. 3. Metodo: ${METHOD_NAME:-default}.
+            Reglas: 1. Cambia 'Endpoint' o '{{SERVICE_KEBAB}}' a '$(to_pascal "$ENDPOINT_NAME")' o '$ENDPOINT_NAME' según corresponda. 2. Usa @commons, @dto. 3. Metodo: ${METHOD_NAME:-default}.
             TEMPLATE: $(cat "$TPL_DIR/$TPL_FILE")"
             mkdir -p "$(dirname "$ENDPOINT_DIR/$TARGET_FILE")"
             

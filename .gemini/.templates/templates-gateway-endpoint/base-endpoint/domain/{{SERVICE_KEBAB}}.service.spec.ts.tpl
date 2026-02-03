@@ -1,4 +1,4 @@
-import { {{SERVICE_PASCAL}}Service } from '../domain/{{SERVICE_KEBAB}}.service';
+import { {{SERVICE_PASCAL}}Service } from './{{SERVICE_KEBAB}}.service';
 
 describe('{{SERVICE_PASCAL}}Service', () => {
   let service: {{SERVICE_PASCAL}}Service;

@@ -1,4 +1,4 @@
-import { {{SERVICE_PASCAL}}ImplService } from '../application/{{SERVICE_KEBAB}}.impl.service';
+import { {{SERVICE_PASCAL}}ImplService } from './{{SERVICE_KEBAB}}.impl.service';
 
 describe('{{SERVICE_PASCAL}}ImplService', () => {
   let service: {{SERVICE_PASCAL}}ImplService;

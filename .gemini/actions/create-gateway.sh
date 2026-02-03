@@ -60,6 +60,9 @@ if [ -d "$ENDPOINTS_TPL_DIR" ]; then
     for d in "$ENDPOINTS_TPL_DIR"/*/; do
         ENDPOINT_NAME=$(basename "$d")
         [[ "$ENDPOINT_NAME" == .* ]] && continue
+        # Ignorar el template base-endpoint, ya que solo sirve de guía para la IA
+        [[ "$ENDPOINT_NAME" == "base-endpoint" ]] && continue
+        
         # Solo autogenerar si ya existen como carpetas (Templates fijos)
         bash "$ROOT_AGENT_DIR/$ACTIONS_DIR/create-gateway-endpoint.sh" "$ENDPOINT_NAME" "" "" "" "" "$GW_MODE"
     done

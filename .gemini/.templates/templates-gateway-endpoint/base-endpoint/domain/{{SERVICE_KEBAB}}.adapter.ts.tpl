@@ -1,6 +1,6 @@
 import { Request } from 'express';
-import { ResponseDto } from '../../../dto/response';
-import { RequestDto } from '../../../dto/request';
+import { ResponseDto } from '../../../../dto/response';
+import { RequestDto } from '../../../../dto/request';
 
 export abstract class {{SERVICE_PASCAL}}Adapter {
   abstract {{METHOD_NAME}}(

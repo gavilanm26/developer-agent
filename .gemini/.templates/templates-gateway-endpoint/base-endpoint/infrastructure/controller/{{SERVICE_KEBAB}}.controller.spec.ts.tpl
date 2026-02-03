@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { {{SERVICE_PASCAL}}Controller } from '../infrastructure/controller/{{SERVICE_KEBAB}}.controller';
+import { {{SERVICE_PASCAL}}Controller } from './{{SERVICE_KEBAB}}.controller';
 import { {{SERVICE_PASCAL}}ImplService } from '../application/{{SERVICE_KEBAB}}.impl.service';
 
 describe('{{SERVICE_PASCAL}}Controller', () => {
