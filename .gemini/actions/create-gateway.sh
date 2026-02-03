@@ -54,6 +54,11 @@ copy_tpl_folder() {
 copy_tpl_folder "$TPL_DIR/commons" "commons"
 copy_tpl_folder "$TPL_DIR/dto" "dto"
 
+# Reemplazar placeholders en los archivos generados
+echo -e "${BLUE}Personalizando archivos con el nombre del servicio: $NAME...${NC}"
+find src -type f -exec sed -i '' "s/{{SERVICE_NAME}}/$NAME/g" {} + 2>/dev/null || \
+find src -type f -exec sed -i "s/{{SERVICE_NAME}}/$NAME/g" {} +
+
 # 4. Endpoints Dinámicos (Solo los base)
 ENDPOINTS_TPL_DIR="$ROOT_AGENT_DIR/.gemini/.templates/templates-gateway-endpoint"
 if [ -d "$ENDPOINTS_TPL_DIR" ]; then

@@ -12,8 +12,8 @@ export class OpenTelemetryConfig {
   static async initialize() {
     this.sdk = new NodeSDK({
       resource: resourceFromAttributes({
-        'service.name': 'bcs-breb-api-gateway',
-        'service.namespace': 'bcs-breb',
+        'service.name': '{{SERVICE_NAME}}-api-gateway',
+        'service.namespace': '{{SERVICE_NAME}}',
       }),
       traceExporter: new OTLPTraceExporter({
         url: process.env.GRAFANAURLTRACES,
