@@ -48,12 +48,10 @@ mkdir -p "$ROOT_AGENT_DIR/.gemini/tmp"
 
 echo -e "${BLUE}🔨 Creando módulo NestJS '$ENDPOINT_NAME'...${NC}"
 
-# 1. Nest CLI
+# 1. Nest CLI (Crea el módulo base)
 if [ ! -d "$ENDPOINT_DIR" ]; then
     npx nest g mo "endpoint/$ENDPOINT_NAME" --no-spec >/dev/null
 fi
-
-mkdir -p "$ENDPOINT_DIR"/{application/service,domain/{interfaces,ports},infrastructure/{controller,adapter,dto}}
 
 # 2. Lógica de Templates
 if [[ -d "$TPL_DIR/$ENDPOINT_NAME" ]]; then
@@ -62,6 +60,10 @@ if [[ -d "$TPL_DIR/$ENDPOINT_NAME" ]]; then
     find "$ENDPOINT_DIR" -path "*/.gemini" -prune -o -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
 else
     echo -e "${YELLOW}🤖 Generando código inteligente para '$ENDPOINT_NAME'...${NC}"
+    
+    # Crear estructura hexagonal solo para generación inteligente
+    mkdir -p "$ENDPOINT_DIR"/{application/service,domain/{interfaces,ports},infrastructure/{controller,adapter,dto}}
+    
     FILES=(
         "base-endpoint/infrastructure/controller/{{SERVICE_KEBAB}}.controller.ts.tpl:infrastructure/controller/${ENDPOINT_NAME}.controller.ts"
         "base-endpoint/application/{{SERVICE_KEBAB}}.impl.service.ts.tpl:application/service/${ENDPOINT_NAME}.impl.service.ts"
