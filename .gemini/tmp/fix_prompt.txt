@@ -1,0 +1,77 @@
+ERES UN EXPERTO EN NESTJS Y JEST.
+El módulo 'customer' tiene errores de tests o cobertura.
+ESTRUCTURA DEL MÓDULO:
+src/endpoint/customer
+src/endpoint/customer/customer.module.ts
+src/endpoint/customer/application
+src/endpoint/customer/application/customer.impl.service.spec.ts
+src/endpoint/customer/application/customer.impl.service.ts
+src/endpoint/customer/infrastructure
+src/endpoint/customer/infrastructure/adapter
+src/endpoint/customer/infrastructure/adapter/ms-customer.adapter.spec.ts
+src/endpoint/customer/infrastructure/adapter/ms-customer.adapter.ts
+src/endpoint/customer/infrastructure/controller
+src/endpoint/customer/infrastructure/controller/customer.controller.ts
+src/endpoint/customer/infrastructure/controller/customer.controller.spec.ts
+src/endpoint/customer/domain
+src/endpoint/customer/domain/customer.adapter.spec.ts
+src/endpoint/customer/domain/customer.service.spec.ts
+src/endpoint/customer/domain/customer.service.ts
+src/endpoint/customer/domain/customer.adapter.ts
+
+LOG DE ERROR:
+  token-kyc-service.service.ts                      |       0 |      100 |       0 |       0 | 1-13              
+ src/endpoint/auth/application/use-case             |       0 |      100 |       0 |       0 |                   
+  validate.ts                                       |       0 |      100 |       0 |       0 | 1-9               
+ src/endpoint/auth/domain                           |       0 |        0 |     100 |       0 |                   
+  auth.service.ts                                   |       0 |      100 |     100 |       0 | 1-7               
+  jwt.config.ts                                     |       0 |        0 |     100 |       0 | 4-8               
+  token.service.ts                                  |       0 |      100 |     100 |       0 | 1-7               
+ src/endpoint/auth/domain/request                   |       0 |      100 |       0 |       0 |                   
+  auth-request.dto.ts                               |       0 |      100 |       0 |       0 | 1-9               
+  index.ts                                          |       0 |      100 |       0 |       0 | 1                 
+  values.dto.ts                                     |       0 |      100 |     100 |       0 | 1-14              
+ src/endpoint/auth/infrastructure/adapter           |       0 |        0 |       0 |       0 |                   
+  ms-identity-auth.ts                               |       0 |        0 |       0 |       0 | 1-23              
+ src/endpoint/auth/infrastructure/controller        |       0 |      100 |       0 |       0 |                   
+  auth.controller.ts                                |       0 |      100 |       0 |       0 | 1-17              
+ src/endpoint/auth/infrastructure/guard             |       0 |        0 |       0 |       0 |                   
+  auth.guard.ts                                     |       0 |        0 |       0 |       0 | 1-142             
+ src/endpoint/auth/infrastructure/service           |       0 |        0 |       0 |       0 |                   
+  token.guard.ts                                    |       0 |        0 |       0 |       0 | 1-36              
+ src/endpoint/auth/infrastructure/strategy          |       0 |        0 |       0 |       0 |                   
+  jwt.strategy.ts                                   |       0 |        0 |       0 |       0 | 1-21              
+ src/endpoint/config-site                           |       0 |      100 |     100 |       0 |                   
+  config-site.module.ts                             |       0 |      100 |     100 |       0 | 1-18              
+ src/endpoint/config-site/application               |       0 |      100 |       0 |       0 |                   
+  site-config.service.impl.ts                       |       0 |      100 |       0 |       0 | 1-12              
+ src/endpoint/config-site/domain                    |       0 |      100 |     100 |       0 |                   
+  config-site.adapter.ts                            |       0 |      100 |     100 |       0 | 1-6               
+  config-site.service.ts                            |       0 |      100 |     100 |       0 | 1-6               
+ src/endpoint/config-site/infrastructure/adapter    |       0 |        0 |       0 |       0 |                   
+  ms-identity-config.adapter.ts                     |       0 |        0 |       0 |       0 | 1-45              
+ src/endpoint/config-site/infrastructure/controller |       0 |      100 |       0 |       0 |                   
+  config-site.controller.ts                         |       0 |      100 |       0 |       0 | 1-13              
+ src/endpoint/customer                              |       0 |      100 |     100 |       0 |                   
+  customer.module.ts                                |       0 |      100 |     100 |       0 | 1-24              
+ src/endpoint/customer/application                  |     100 |      100 |     100 |     100 |                   
+  customer.impl.service.ts                          |     100 |      100 |     100 |     100 |                   
+ src/endpoint/customer/domain                       |     100 |      100 |     100 |     100 |                   
+  customer.adapter.ts                               |     100 |      100 |     100 |     100 |                   
+  customer.service.ts                               |     100 |      100 |     100 |     100 |                   
+ src/endpoint/customer/infrastructure/adapter       |     100 |    83.33 |     100 |     100 |                   
+  ms-customer.adapter.ts                            |     100 |    83.33 |     100 |     100 | 40                
+ src/endpoint/customer/infrastructure/controller    |     100 |      100 |     100 |     100 |                   
+  customer.controller.ts                            |     100 |      100 |     100 |     100 |                   
+----------------------------------------------------|---------|----------|---------|---------|-------------------
+
+Test Suites: 1 failed, 4 passed, 5 total
+Tests:       9 passed, 9 total
+Snapshots:   0 total
+Time:        5.345 s
+Ran all test suites matching src/endpoint/customer.
+
+INSTRUCCIÓN:
+1. Analiza el error.
+2. Devuelve el contenido corregido para los archivos afectados.
+3. Formato de respuesta: ### RUTA_ARCHIVO ### CONTENIDO ###

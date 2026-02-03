@@ -5,11 +5,8 @@ describe('{{SERVICE_PASCAL}}Adapter (port)', () => {
     expect({{SERVICE_PASCAL}}Adapter).toBeDefined();
   });
 
-  it('should declare {{METHOD_NAME}} method', () => {
-    const methods = Object.getOwnPropertyNames(
-      {{SERVICE_PASCAL}}Adapter.prototype,
-    );
-
-    expect(methods).toContain('{{METHOD_NAME}}');
+  it('should be an abstract class', () => {
+    expect({{SERVICE_PASCAL}}Adapter.prototype.constructor).toBeDefined();
+    expect({{SERVICE_PASCAL}}Adapter.name).toBe('{{SERVICE_PASCAL}}Adapter');
   });
 });

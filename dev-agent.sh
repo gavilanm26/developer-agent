@@ -124,7 +124,29 @@ case "$1" in
         ;; 
 
     new-endpoint)
-        bash "$ACTIONS_DIR/create-gateway-endpoint.sh" "$2" "$3" "$4" "$5" "$6" "$7" "$8"
+        check_environment
+        ENDPOINT_NAME=$2
+        if [ -z "$ENDPOINT_NAME" ]; then
+            read -p "Nombre del módulo/endpoint: " ENDPOINT_NAME
+        fi
+
+        echo -e "\n¿Para qué tipo de servicio es este módulo?"
+        echo "1) API Gateway (Usa templates de base-endpoint)"
+        echo "2) Microservicio Estándar / Otro"
+        read -p "Opción (1-2): " MODULE_TYPE_OPT
+
+        case "$MODULE_TYPE_OPT" in
+            1)
+                bash "$ACTIONS_DIR/create-gateway-endpoint.sh" "$ENDPOINT_NAME" "$3" "$4" "$5" "$6" "$7" "$8"
+                ;; 
+            2)
+                bash "$ACTIONS_DIR/create-module-nestjs.sh" "$ENDPOINT_NAME"
+                ;; 
+            *)
+                echo -e "${RED}Opción inválida.${NC}"
+                exit 1
+                ;; 
+        esac
         ;; 
 
     new-module)

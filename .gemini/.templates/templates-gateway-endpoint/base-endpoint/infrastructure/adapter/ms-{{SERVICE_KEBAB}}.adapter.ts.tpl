@@ -5,7 +5,6 @@ import { AxiosResponse } from 'axios';
 import { Request } from 'express';
 
 import { ResponseDto } from '../../../../dto/response';
-import { RequestDto } from '../../../../dto/request';
 import { httpLogger } from '../../../../commons/http-logger/httpLogger';
 
 import { {{SERVICE_PASCAL}}Adapter } from '../../domain/{{SERVICE_KEBAB}}.adapter';
@@ -27,7 +26,7 @@ export class Ms{{SERVICE_PASCAL}}Adapter
   }
 
   async {{METHOD_NAME}}(
-    payload: RequestDto,
+    payload: any,
     req: Request,
   ): Promise<ResponseDto> {
     const response = await firstValueFrom<AxiosResponse>(

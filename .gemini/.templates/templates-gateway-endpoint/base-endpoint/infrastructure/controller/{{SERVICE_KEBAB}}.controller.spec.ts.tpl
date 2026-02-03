@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { {{SERVICE_PASCAL}}Controller } from './{{SERVICE_KEBAB}}.controller';
-import { {{SERVICE_PASCAL}}ImplService } from '../application/{{SERVICE_KEBAB}}.impl.service';
+import { {{SERVICE_PASCAL}}Service } from '../../domain/{{SERVICE_KEBAB}}.service';
 
 describe('{{SERVICE_PASCAL}}Controller', () => {
   let controller: {{SERVICE_PASCAL}}Controller;
@@ -14,7 +14,7 @@ describe('{{SERVICE_PASCAL}}Controller', () => {
       controllers: [{{SERVICE_PASCAL}}Controller],
       providers: [
         {
-          provide: {{SERVICE_PASCAL}}ImplService,
+          provide: {{SERVICE_PASCAL}}Service,
           useValue: mockService,
         },
       ],

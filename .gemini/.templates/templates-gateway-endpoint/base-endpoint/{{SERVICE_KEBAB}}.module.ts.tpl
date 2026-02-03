@@ -11,8 +11,10 @@ import { Ms{{SERVICE_PASCAL}}Adapter } from './infrastructure/adapter/ms-{{SERVI
   imports: [HttpModule],
   controllers: [{{SERVICE_PASCAL}}Controller],
   providers: [
-    {{SERVICE_PASCAL}}Service,
-    {{SERVICE_PASCAL}}ImplService,
+    {
+      provide: {{SERVICE_PASCAL}}Service,
+      useClass: {{SERVICE_PASCAL}}ImplService,
+    },
     {
       provide: {{SERVICE_PASCAL}}Adapter,
       useClass: Ms{{SERVICE_PASCAL}}Adapter,
