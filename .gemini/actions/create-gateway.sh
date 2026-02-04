@@ -38,8 +38,9 @@ sed -i '' "s/\"name\": \"$TEMP_DIR\"/\"name\": \"$NAME\"/" package.json 2>/dev/n
 rm -f "src/app.controller.ts" "src/app.service.ts" "src/app.controller.spec.ts"
 
 # 3. Base Templates
-[ -f "$TPL_DIR/main.ts.tpl" ] && cp "$TPL_DIR/main.ts.tpl" "src/main.ts"
+# Forzamos la copia del template limpio de app.module.ts al inicio
 [ -f "$TPL_DIR/app.module.ts.tpl" ] && cp "$TPL_DIR/app.module.ts.tpl" "src/app.module.ts"
+[ -f "$TPL_DIR/main.ts.tpl" ] && cp "$TPL_DIR/main.ts.tpl" "src/main.ts"
 [ -f "$TPL_DIR/.env.tpl" ] && cp "$TPL_DIR/.env.tpl" ".env"
 
 copy_tpl_folder() {
@@ -61,45 +62,76 @@ find src -type f -exec sed -i "s/{{SERVICE_NAME}}/$NAME/g" {} +
 
 # 4. Endpoints Dinámicos (Solo los base)
 ENDPOINTS_TPL_DIR="$ROOT_AGENT_DIR/.gemini/.templates/templates-gateway-endpoint"
+CREATED_ENDPOINTS=()
 if [ -d "$ENDPOINTS_TPL_DIR" ]; then
     for d in "$ENDPOINTS_TPL_DIR"/*/; do
         ENDPOINT_NAME=$(basename "$d")
         [[ "$ENDPOINT_NAME" == .* ]] && continue
-        # Ignorar el template base-endpoint, ya que solo sirve de guía para la IA
         [[ "$ENDPOINT_NAME" == "base-endpoint" ]] && continue
         
-        # Solo autogenerar si ya existen como carpetas (Templates fijos)
-        bash "$ROOT_AGENT_DIR/$ACTIONS_DIR/create-gateway-endpoint.sh" "$ENDPOINT_NAME" "" "" "" "" "$GW_MODE"
+        CREATED_ENDPOINTS+=("$ENDPOINT_NAME")
+        # Pasamos exactamente 9 argumentos para asegurar que "true" llegue a SKIP_QUALITY
+        # 1:Name, 2:Method, 3:Route, 4:HTTP, 5:BaseUrl, 6:ExtPath, 7:Version, 8:Mode, 9:SkipQuality
+        bash "$ROOT_AGENT_DIR/$ACTIONS_DIR/create-gateway-endpoint.sh" \
+            "$ENDPOINT_NAME" "" "" "" "" "" "/v1" "$GW_MODE" "true"
     done
 fi
 
 apply_global_templates "."
 
-# 5. Limpieza
+# 5. Dependencias
+echo -e "${BLUE}📦 Instalando dependencias...${NC}"
+BASE_DEPS="dotenv @nestjs/config @nestjs/axios axios class-validator class-transformer @nestjs/platform-express jsonwebtoken @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-proto @opentelemetry/resources @nestjs/jwt @nestjs/passport passport-jwt"
+if [ "$GW_MODE" == "hybrid" ]; then
+    npm install --save $BASE_DEPS @nestjs/graphql graphql-tag graphql >/dev/null 2>&1
+else
+    npm install --save $BASE_DEPS >/dev/null 2>&1
+fi
+npm install --save-dev @types/jsonwebtoken @types/node @types/passport-jwt >/dev/null 2>&1
+
+# 6. Limpieza GraphQL
 if [ "$GW_MODE" == "rest" ]; then
     echo -e "${YELLOW}🧹 Limpiando GraphQL...${NC}"
     find src -name "*.ts" -exec sh -c 'source "'$ROOT_AGENT_DIR'/.gemini/core/utils.sh"; clean_graphql_artifacts "$1"' _ {} \;
 fi
 
-# 6. Deps
-echo -e "${BLUE}Instalando dependencias...${NC}"
-BASE_DEPS="dotenv @nestjs/config @nestjs/axios axios class-validator class-transformer @nestjs/platform-express jsonwebtoken @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-proto @opentelemetry/resources @nestjs/jwt @nestjs/passport passport-jwt"
-if [ "$GW_MODE" == "hybrid" ]; then
-    npm install --save $BASE_DEPS @nestjs/graphql graphql-tag graphql
-else
-    npm install --save $BASE_DEPS
-fi
-npm install --save-dev @types/jsonwebtoken @types/node @types/passport-jwt
-
-# 7. Build y Calidad (Permisivo)
-echo -e "${BLUE}Validando compilación...${NC}"
-npm run build
+# 7. Verificación de Arranque
+echo -e "${BLUE}🚀 Verificando arranque del servicio...${NC}"
+npm run build >/dev/null 2>&1
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✔ Compilación Exitosa.${NC}"
-    if type ensure_quality_standards >/dev/null 2>&1; then
-        echo -e "${BLUE}Iniciando Garante de Calidad...${NC}"
-        ensure_quality_standards || echo -e "${YELLOW}⚠️ Algunos tests fallaron, pero el proyecto continúa.${NC}"
+    # Intentar arrancar en segundo plano
+    # Usamos PORT 3000 por defecto si no existe en .env
+    CHECK_PORT=$(grep "PORT=" .env | cut -d'=' -f2 || echo "3000")
+    CHECK_PORT=${CHECK_PORT:-3000}
+
+    npm run start > server_start.log 2>&1 &
+    SERVER_PID=$!
+    
+    echo -e "${YELLOW}⏳ Esperando 10s para validación en puerto $CHECK_PORT...${NC}"
+    sleep 10
+    
+    if lsof -Pi :$CHECK_PORT -sTCP:LISTEN -t >/dev/null ; then
+        echo -e "${GREEN}✔ El servicio arrancó correctamente en el puerto $CHECK_PORT.${NC}"
+        # Matar todos los procesos en ese puerto (Padre npm e hijos node)
+        lsof -ti :$CHECK_PORT | xargs kill -9 2>/dev/null || kill -9 $SERVER_PID
+    else
+        echo -e "${RED}✘ El servicio falló al arrancar o no respondió en el puerto $CHECK_PORT.${NC}"
+        cat server_start.log
+        kill -9 $SERVER_PID 2>/dev/null
+        exit 1
     fi
+    rm -f server_start.log
 else
-    echo -e "${RED}✘ Error de compilación detectado.${NC}"
+    echo -e "${RED}✘ Fallo en la compilación inicial.${NC}"
+    exit 1
 fi
+
+# 8. Garante de Calidad Final (Para todos los módulos creados)
+echo -e "${BLUE}🛡️ Ejecutando Garante de Calidad para módulos base...${NC}"
+for ENDPOINT in "${CREATED_ENDPOINTS[@]}"; do
+    # Ejecutamos ahora la calidad explícitamente (SkipQuality = false)
+    bash "$ROOT_AGENT_DIR/$ACTIONS_DIR/create-gateway-endpoint.sh" \
+        "$ENDPOINT" "" "" "" "" "" "/v1" "$GW_MODE" "false"
+done
+
+echo -e "${GREEN}✨ API Gateway '$NAME' generado con éxito.${NC}"

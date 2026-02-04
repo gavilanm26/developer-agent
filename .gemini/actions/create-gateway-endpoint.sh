@@ -11,6 +11,14 @@ EXTERNAL_BASE_URL_ENV="${5:-}"
 EXTERNAL_PATH="${6:-}"
 EXTERNAL_API_VERSION="${7:-/v1}"
 GW_MODE="${8:-hybrid}"
+# Capturar el noveno parámetro con un valor por defecto seguro
+SKIP_QUALITY_INPUT="${9:-false}"
+
+if [ "$SKIP_QUALITY_INPUT" = "true" ]; then
+    SKIP_QUALITY="true"
+else
+    SKIP_QUALITY="false"
+fi
 
 if [[ -z "$ENDPOINT_NAME" ]]; then
   echo "❌ Uso: ./dev-agent.sh new-endpoint <nombre-modulo>"
@@ -113,30 +121,30 @@ echo -e "${BLUE}🔗 Sincronizando módulo en AppModule...${NC}"
 bash "$ROOT_AGENT_DIR/.gemini/core/sync-appmodule-endpoints.sh"
 
 # 5. Bucle de Garantía de Calidad (Tests y Cobertura)
-echo -e "${BLUE}🛡️ Iniciando Garante de Calidad para '$ENDPOINT_NAME'...${NC}"
-
-MAX_RETRIES=5
-ATTEMPT=0
-SUCCESS=false
-
-while [ $ATTEMPT -lt $MAX_RETRIES ]; do
-    ATTEMPT=$((ATTEMPT + 1))
-    echo -e "${YELLOW}🔄 Intento $ATTEMPT/$MAX_RETRIES: Ejecutando tests y cobertura...${NC}"
+if [ "$SKIP_QUALITY" = "false" ]; then
+    echo -e "${BLUE}🛡️ Iniciando Garante de Calidad para '$ENDPOINT_NAME'...${NC}"
     
-    # Ejecutar tests capturando salida
-    TEST_LOG="test_output.log"
-    npm run test:cov -- "$ENDPOINT_DIR" > "$TEST_LOG" 2>&1 || true
-    
-    # Verificar si pasaron los tests (buscando "FAIL" en el log o revisando exit code de jest)
-    # Nota: Filtramos por el directorio del endpoint para ser específicos
-    if grep -q "FAIL" "$TEST_LOG" || ! grep -q "PASS" "$TEST_LOG"; then
-        echo -e "${RED}❌ Los tests fallaron o no hay cobertura suficiente.${NC}"
+    MAX_RETRIES=5
+    ATTEMPT=0
+    SUCCESS=false
+
+    while [ $ATTEMPT -lt $MAX_RETRIES ]; do
+        ATTEMPT=$((ATTEMPT + 1))
+        echo -e "${YELLOW}🔄 Intento $ATTEMPT/$MAX_RETRIES: Ejecutando tests y cobertura...${NC}"
         
-        echo -e "${YELLOW}🤖 La IA está analizando los errores para corregir '$ENDPOINT_NAME'...${NC}"
+        # Ejecutar tests capturando salida
+        TEST_LOG="test_output.log"
+        npm run test:cov -- "$ENDPOINT_DIR" > "$TEST_LOG" 2>&1 || true
         
-        # Preparar prompt para la IA con el error
-        PROMPT_FILE="$ROOT_AGENT_DIR/.gemini/tmp/fix_prompt.txt"
-        cat <<EOF > "$PROMPT_FILE"
+        # Verificar si pasaron los tests
+        if grep -q "FAIL" "$TEST_LOG" || ! grep -q "PASS" "$TEST_LOG"; then
+            echo -e "${RED}❌ Los tests fallaron o no hay cobertura suficiente.${NC}"
+            
+            echo -e "${YELLOW}🤖 La IA está analizando los errores para corregir '$ENDPOINT_NAME'...${NC}"
+            
+            # Preparar prompt para la IA con el error
+            PROMPT_FILE="$ROOT_AGENT_DIR/.gemini/tmp/fix_prompt.txt"
+            cat <<EOF > "$PROMPT_FILE"
 ERES UN EXPERTO EN NESTJS Y JEST.
 El módulo '$ENDPOINT_NAME' tiene errores de tests o cobertura.
 ESTRUCTURA DEL MÓDULO:
@@ -150,37 +158,39 @@ INSTRUCCIÓN:
 2. Devuelve el contenido corregido para los archivos afectados.
 3. Formato de respuesta: ### RUTA_ARCHIVO ### CONTENIDO ###
 EOF
-        
-        # Llamar a la IA para obtener correcciones
-        CORRECTIONS=$(bash "$ROOT_AGENT_DIR/.gemini/core/ai-bridge.sh" "" "$PROMPT_FILE")
-        
-        # Aplicar correcciones (Lógica simple de parseo de la respuesta de la IA)
-        echo "$CORRECTIONS" | awk -v dir="$PWD" '
-            /^### .* ###/ { 
-                file=$2; 
-                gsub(/^### | ###$/, "", file); 
-                print "Corrigiendo: " file;
-                content_file=file ".tmp";
-                next; 
-            } 
-            { if(file) print $0 > content_file; }
-            END { }
-        '
-        # Mover archivos temporales a su lugar real
-        find . -name "*.tmp" | while read -r tmp_file; do
-            real_file="${tmp_file%.tmp}"
-            mv "$tmp_file" "$real_file"
-        done
-    else
-        echo -e "${GREEN}✅ Todos los tests pasaron y la cobertura es óptima.${NC}"
-        SUCCESS=true
-        break
-    fi
-done
+            
+            # Llamar a la IA para obtener correcciones
+            CORRECTIONS=$(bash "$ROOT_AGENT_DIR/.gemini/core/ai-bridge.sh" "" "$PROMPT_FILE")
+            
+            # Aplicar correcciones
+            echo "$CORRECTIONS" | awk -v dir="$PWD" '
+                /^### .* ###/ { 
+                    file=$2; 
+                    gsub(/^### | ###$/, "", file); 
+                    print "Corrigiendo: " file;
+                    content_file=file ".tmp";
+                    next; 
+                } 
+                { if(file) print $0 > content_file; }
+                END { }
+            '
+            # Mover archivos temporales a su lugar real
+            find . -name "*.tmp" | while read -r tmp_file; do
+                real_file="${tmp_file%.tmp}"
+                mv "$tmp_file" "$real_file"
+            done
+        else
+            echo -e "${GREEN}✅ Todos los tests pasaron y la cobertura es óptima.${NC}"
+            SUCCESS=true
+            break
+        fi
+    done
 
-if [ "$SUCCESS" = false ]; then
-    echo -e "${RED}❌ No se pudo estabilizar el módulo tras $MAX_RETRIES intentos. Revisa los logs.${NC}"
+    if [ "$SUCCESS" = false ]; then
+        echo -e "${RED}❌ No se pudo estabilizar el módulo tras $MAX_RETRIES intentos. Revisa los logs.${NC}"
+    fi
+
+    rm -f "$TEST_LOG"
 fi
 
-rm -f "$TEST_LOG"
 echo -e "${GREEN}✅ Módulo '$ENDPOINT_NAME' finalizado.${NC}"

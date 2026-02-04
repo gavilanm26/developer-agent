@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Request } from 'express';
 
-import { {{SERVICE_PASCAL}}Service } from '../domain/{{SERVICE_PASCAL}}.Service';
-import { {{SERVICE_PASCAL}}Adapter } from '../domain/{{SERVICE_PASCAL}}.Adapter';
+import { {{SERVICE_PASCAL}}Service } from '../domain/{{SERVICE_PASCAL}}.service';
+import { {{SERVICE_PASCAL}}Adapter } from '../domain/{{SERVICE_PASCAL}}.adapter';
 import { ResponseDto } from '../../../dto/response';
 import { RequestDto } from '../../../dto/request';
 
