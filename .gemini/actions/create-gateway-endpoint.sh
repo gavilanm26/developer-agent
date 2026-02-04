@@ -30,6 +30,9 @@ if [[ "$ENDPOINT_NAME" == "base-endpoint" ]]; then
   exit 1
 fi
 
+# Forzar el nombre a minúsculas para carpetas y módulos
+ENDPOINT_NAME=$(echo "$ENDPOINT_NAME" | tr '[:upper:]' '[:lower:]')
+
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -54,29 +57,38 @@ fi
 # Asegurar que la carpeta TMP del agente exista
 mkdir -p "$ROOT_AGENT_DIR/.gemini/tmp"
 
-echo -e "${BLUE}🔨 Creando módulo NestJS '$ENDPOINT_NAME'...${NC}"
-
-# 1. Nest CLI (Crea el módulo base)
-if [ ! -d "$ENDPOINT_DIR" ]; then
-    npx nest g mo "endpoint/$ENDPOINT_NAME" --no-spec >/dev/null
+# Determinar si el módulo ya existe
+MODULE_EXISTS=false
+if [ -d "$ENDPOINT_DIR" ]; then
+    MODULE_EXISTS=true
 fi
 
-# 2. Lógica de Templates
-if [[ -d "$TPL_DIR/$ENDPOINT_NAME" ]]; then
-    echo -e "${GREEN}📂 Usando template específico para '$ENDPOINT_NAME'.${NC}"
-    cp -r "$TPL_DIR/$ENDPOINT_NAME/"* "$ENDPOINT_DIR/"
-    find "$ENDPOINT_DIR" -path "*/.gemini" -prune -o -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
-else
-    echo -e "${YELLOW}📂 Copiando template base para '$ENDPOINT_NAME'...${NC}"
-    
-    # 1. Copia física de toda la estructura de base-endpoint
-    cp -r "$TPL_DIR/base-endpoint/"* "$ENDPOINT_DIR/"
-    
-    # 2. Renombrar archivos que contienen el placeholder
-    find "$ENDPOINT_DIR" -name "*{{SERVICE_KEBAB}}*" | while read -r file; do
-        new_file=$(echo "$file" | sed "s/{{SERVICE_KEBAB}}/$ENDPOINT_NAME/g" | sed "s/.tpl//g")
-        mv "$file" "$new_file"
-    done
+# 1. Fase de Creación (Solo si no existe o si SKIP_QUALITY es true para forzar)
+if [ "$MODULE_EXISTS" = "false" ] || [ "$SKIP_QUALITY" = "true" ]; then
+    echo -e "${BLUE}🔨 Creando módulo NestJS '$ENDPOINT_NAME'...${NC}"
+
+    # Nest CLI (Crea el módulo base si no existe)
+    if [ ! -d "$ENDPOINT_DIR" ]; then
+        nest g mo "endpoint/$ENDPOINT_NAME" --no-spec >/dev/null || \
+        npx nest g mo "endpoint/$ENDPOINT_NAME" --no-spec >/dev/null
+    fi
+
+    # Lógica de Templates
+    if [[ -d "$TPL_DIR/$ENDPOINT_NAME" ]]; then
+        echo -e "${GREEN}📂 Usando template específico para '$ENDPOINT_NAME'.${NC}"
+        cp -r "$TPL_DIR/$ENDPOINT_NAME/"* "$ENDPOINT_DIR/"
+        find "$ENDPOINT_DIR" -path "*/.gemini" -prune -o -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
+    else
+        echo -e "${YELLOW}📂 Copiando template base para '$ENDPOINT_NAME'...${NC}"
+        
+        # Copia física de toda la estructura de base-endpoint
+        cp -r "$TPL_DIR/base-endpoint/"* "$ENDPOINT_DIR/"
+        
+        # Renombrar archivos
+        find "$ENDPOINT_DIR" -name "*{{SERVICE_KEBAB}}*" | while read -r file; do
+            new_file=$(echo "$file" | sed "s/{{SERVICE_KEBAB}}/$ENDPOINT_NAME/g" | sed "s/.tpl//g")
+            mv "$file" "$new_file"
+        done
 
     # 3. Reemplazar placeholders en el contenido de todos los archivos
     PASCHAL_NAME=$(to_pascal "$ENDPOINT_NAME")
@@ -84,41 +96,48 @@ else
     UPPER_NAME=$(echo "$ENDPOINT_NAME" | tr '[:lower:]' '[:upper:]')
     
     # Valores por defecto para placeholders
-    FINAL_ROUTE="${ROUTE_PATH:-$ENDPOINT_NAME}"
+    FINAL_ROUTE="${ROUTE_PATH:-$LOWER_NAME}"
     FINAL_METHOD="${METHOD_NAME:-execute}"
-    # Si EXTERNAL_BASE_URL_ENV está vacío, usamos solo el nombre en mayúsculas
-    # para que coincida con el prefijo APIURL del template: APIURL + PRODUCTS
     FINAL_ENV="${EXTERNAL_BASE_URL_ENV:-$UPPER_NAME}"
     
     echo -e "${BLUE}📝 Ajustando nombres en el contenido de los archivos...${NC}"
     
     # Procesar cada archivo para asegurar reemplazo total
     find "$ENDPOINT_DIR" -type f | while read -r file; do
-        # 1. Placeholders específicos (Con llaves)
-        sed -i '' "s/{{SERVICE_KEBAB}}/$ENDPOINT_NAME/g" "$file" 2>/dev/null || sed -i "s/{{SERVICE_KEBAB}}/$ENDPOINT_NAME/g" "$file"
+        # A. Primero reemplazamos los placeholders kebab-case (rutas seguras)
+        sed -i '' "s/{{SERVICE_KEBAB}}/$LOWER_NAME/g" "$file" 2>/dev/null || sed -i "s/{{SERVICE_KEBAB}}/$LOWER_NAME/g" "$file"
+        
+        # B. REGLA CRÍTICA: Forzar minúsculas en CUALQUIER placeholder dentro de una ruta de import
+        # Esto busca {{SERVICE_PASCAL}} dentro de comillas después de un 'from' y lo pone en minúsculas
+        perl -i -pe "s/(from\s+['\"][^'\"]*)\{\{SERVICE_PASCAL\}\}([^'\"]*['\"])/\$1$LOWER_NAME\$2/g" "$file" 2>/dev/null || true
+        
+        # C. Ahora sí, reemplazamos {{SERVICE_PASCAL}} por el nombre de la clase (PascalCase)
+        # Como ya limpiamos las rutas en el paso B, esto solo afectará a las clases/tipos
         sed -i '' "s/{{SERVICE_PASCAL}}/$PASCHAL_NAME/g" "$file" 2>/dev/null || sed -i "s/{{SERVICE_PASCAL}}/$PASCHAL_NAME/g" "$file"
+
+        # D. Otros placeholders
         sed -i '' "s/{{ROUTE_PATH}}/$FINAL_ROUTE/g" "$file" 2>/dev/null || sed -i "s/{{ROUTE_PATH}}/$FINAL_ROUTE/g" "$file"
         sed -i '' "s/{{METHOD_NAME}}/$FINAL_METHOD/g" "$file" 2>/dev/null || sed -i "s/{{METHOD_NAME}}/$FINAL_METHOD/g" "$file"
         sed -i '' "s/{{SERVICE_ENV}}/$FINAL_ENV/g" "$file" 2>/dev/null || sed -i "s/{{SERVICE_ENV}}/$FINAL_ENV/g" "$file"
         
-        # 2. Reemplazos de compatibilidad (Sin llaves)
-        sed -i '' "s/Endpoint/$PASCHAL_NAME/g" "$file" 2>/dev/null || sed -i "s/Endpoint/$PASCHAL_NAME/g" "$file"
-        sed -i '' "s/endpoint/$LOWER_NAME/g" "$file" 2>/dev/null || sed -i "s/endpoint/$LOWER_NAME/g" "$file"
+        # E. Reemplazos de compatibilidad (Sin llaves)
+        # Evitamos tocar rutas: solo reemplazamos si NO hay una barra antes
+        perl -i -pe "s/(?<![\/])Endpoint/$PASCHAL_NAME/g" "$file" 2>/dev/null || true
+        sed -i '' "s/endpoint/$LOWER_NAME/g" "$file" 2>/dev/null || true
     done
+        find "$ENDPOINT_DIR" -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
+    fi
 
-    # Quitar extensiones .tpl si quedaron algunas
-    find "$ENDPOINT_DIR" -name "*.tpl" -exec sh -c 'mv "$1" "${1%.tpl}"' _ {} \;
+    # Limpieza GraphQL
+    if [ "$GW_MODE" == "rest" ]; then
+        echo -e "${YELLOW}🧹 Limpiando GraphQL en '$ENDPOINT_NAME'...${NC}"
+        find "$ENDPOINT_DIR" -name "*.ts" -exec sh -c 'source "'"$ROOT_AGENT_DIR"'/.gemini/core/utils.sh"; clean_graphql_artifacts "$1"' _ {} \;
+    fi
+
+    # Registro y Sincronización
+    echo -e "${BLUE}🔗 Sincronizando módulo en AppModule...${NC}"
+    bash "$ROOT_AGENT_DIR/.gemini/core/sync-appmodule-endpoints.sh"
 fi
-
-# 3. Limpieza GraphQL
-if [ "$GW_MODE" == "rest" ]; then
-    echo -e "${YELLOW}🧹 Limpiando GraphQL en '$ENDPOINT_NAME'...${NC}"
-    find "$ENDPOINT_DIR" -name "*.ts" -exec sh -c 'source "'"$ROOT_AGENT_DIR"'/.gemini/core/utils.sh"; clean_graphql_artifacts "$1"' _ {} \;
-fi
-
-# 4. Registro y Sincronización
-echo -e "${BLUE}🔗 Sincronizando módulo en AppModule...${NC}"
-bash "$ROOT_AGENT_DIR/.gemini/core/sync-appmodule-endpoints.sh"
 
 # 5. Bucle de Garantía de Calidad (Tests y Cobertura)
 if [ "$SKIP_QUALITY" = "false" ]; then

@@ -1,92 +1,75 @@
 ERES UN EXPERTO EN NESTJS Y JEST.
-El módulo 'auth' tiene errores de tests o cobertura.
+El módulo 'search-transactions' tiene errores de tests o cobertura.
 ESTRUCTURA DEL MÓDULO:
-src/endpoint/auth
-src/endpoint/auth/application
-src/endpoint/auth/application/jwt-auth.service.spec.ts
-src/endpoint/auth/application/token-kyc-service.service.ts
-src/endpoint/auth/application/use-case
-src/endpoint/auth/application/use-case/validate.spec.ts
-src/endpoint/auth/application/use-case/validate.ts
-src/endpoint/auth/application/jwt-auth.service.ts
-src/endpoint/auth/application/token-kyc-service.service.spec.ts
-src/endpoint/auth/auth.module.ts
-src/endpoint/auth/infrastructure
-src/endpoint/auth/infrastructure/adapter
-src/endpoint/auth/infrastructure/adapter/ms-identity-auth.ts
-src/endpoint/auth/infrastructure/adapter/ms-identity-auth.spec.ts
-src/endpoint/auth/infrastructure/controller
-src/endpoint/auth/infrastructure/controller/auth.controller.ts
-src/endpoint/auth/infrastructure/controller/auth.controller.spec.ts
-src/endpoint/auth/infrastructure/service
-src/endpoint/auth/infrastructure/service/token.guard.spec.ts
-src/endpoint/auth/infrastructure/service/token.guard.ts
-src/endpoint/auth/infrastructure/guard
-src/endpoint/auth/infrastructure/guard/auth.guard.spec.ts
-src/endpoint/auth/infrastructure/guard/auth.guard.ts
-src/endpoint/auth/infrastructure/strategy
-src/endpoint/auth/infrastructure/strategy/jwt.strategy.ts
-src/endpoint/auth/infrastructure/strategy/jwt.strategy.spec.ts
-src/endpoint/auth/domain
-src/endpoint/auth/domain/auth.service.ts
-src/endpoint/auth/domain/jwt.config.ts
-src/endpoint/auth/domain/request
-src/endpoint/auth/domain/request/values.dto.ts
-src/endpoint/auth/domain/request/auth-request.dto.ts
-src/endpoint/auth/domain/request/index.ts
-src/endpoint/auth/domain/token.service.ts
+src/endpoint/search-transactions
+src/endpoint/search-transactions/search-transactions.module.ts
+src/endpoint/search-transactions/application
+src/endpoint/search-transactions/application/search-transactions.impl.service.ts
+src/endpoint/search-transactions/application/search-transactions.impl.service.spec.ts
+src/endpoint/search-transactions/infrastructure
+src/endpoint/search-transactions/infrastructure/adapter
+src/endpoint/search-transactions/infrastructure/adapter/ms-search-transactions.adapter.ts
+src/endpoint/search-transactions/infrastructure/adapter/ms-search-transactions.adapter.spec.ts
+src/endpoint/search-transactions/infrastructure/controller
+src/endpoint/search-transactions/infrastructure/controller/search-transactions.controller.spec.ts
+src/endpoint/search-transactions/infrastructure/controller/search-transactions.controller.ts
+src/endpoint/search-transactions/domain
+src/endpoint/search-transactions/domain/search-transactions.adapter.ts
+src/endpoint/search-transactions/domain/search-transactions.service.ts
+src/endpoint/search-transactions/domain/search-transactions.adapter.spec.ts
+src/endpoint/search-transactions/domain/search-transactions.service.spec.ts
 
 LOG DE ERROR:
-  health-check.module.ts                     |       0 |      100 |     100 |       0 | 1-7               
-  health.controller.ts                       |       0 |      100 |       0 |       0 | 1-7               
- src/commons/http-logger                     |       0 |        0 |       0 |       0 |                   
-  grafanaLogger.config.ts                    |       0 |      100 |       0 |       0 | 1-53              
-  httpLogger.ts                              |       0 |        0 |       0 |       0 | 2-45              
- src/commons/interceptor                     |       0 |        0 |       0 |       0 |                   
-  headers.interceptor.ts                     |       0 |        0 |       0 |       0 | 1-57              
-  status-code.interceptor.ts                 |       0 |        0 |       0 |       0 | 1-19              
- src/commons/libs/ip                         |       0 |        0 |       0 |       0 |                   
-  client-ip.util.ts                          |       0 |        0 |       0 |       0 | 3-27              
-  index.ts                                   |       0 |      100 |     100 |       0 | 1                 
- src/commons/middlewares                     |       0 |      100 |       0 |       0 |                   
-  client-ip.middleware.ts                    |       0 |      100 |       0 |       0 | 2-11              
- src/dto/request                             |       0 |      100 |       0 |       0 |                   
-  index.ts                                   |       0 |      100 |       0 |       0 | 1                 
-  request.dto.ts                             |       0 |      100 |     100 |       0 | 1-5               
- src/dto/response                            |       0 |      100 |       0 |       0 |                   
-  index.ts                                   |       0 |      100 |       0 |       0 | 1                 
-  response.model.ts                          |       0 |      100 |     100 |       0 | 2-10              
- src/endpoint/auth                           |       0 |      100 |     100 |       0 |                   
-  auth.module.ts                             |       0 |      100 |     100 |       0 | 1-43              
- src/endpoint/auth/application               |      55 |    57.14 |      50 |   56.25 |                   
-  jwt-auth.service.ts                        |     100 |       80 |     100 |     100 | 12                
-  token-kyc-service.service.ts               |       0 |        0 |       0 |       0 | 1-13              
- src/endpoint/auth/application/use-case      |     100 |      100 |     100 |     100 |                   
-  validate.ts                                |     100 |      100 |     100 |     100 |                   
- src/endpoint/auth/domain                    |   36.36 |        0 |     100 |   28.57 |                   
-  auth.service.ts                            |       0 |      100 |     100 |       0 | 1-7               
-  jwt.config.ts                              |       0 |        0 |     100 |       0 | 4-8               
-  token.service.ts                           |     100 |      100 |     100 |     100 |                   
- src/endpoint/auth/domain/request            |       0 |        0 |       0 |       0 |                   
-  auth-request.dto.ts                        |       0 |        0 |       0 |       0 | 1-9               
-  index.ts                                   |       0 |      100 |       0 |       0 | 1                 
-  values.dto.ts                              |       0 |      100 |     100 |       0 | 1-14              
- src/endpoint/auth/infrastructure/adapter    |       0 |        0 |       0 |       0 |                   
-  ms-identity-auth.ts                        |       0 |        0 |       0 |       0 | 1-23              
- src/endpoint/auth/infrastructure/controller |       0 |        0 |       0 |       0 |                   
-  auth.controller.ts                         |       0 |        0 |       0 |       0 | 1-17              
- src/endpoint/auth/infrastructure/guard      |       0 |        0 |       0 |       0 |                   
-  auth.guard.ts                              |       0 |        0 |       0 |       0 | 1-142             
- src/endpoint/auth/infrastructure/service    |       0 |        0 |       0 |       0 |                   
-  token.guard.ts                             |       0 |        0 |       0 |       0 | 1-36              
- src/endpoint/auth/infrastructure/strategy   |       0 |        0 |       0 |       0 |                   
-  jwt.strategy.ts                            |       0 |        0 |       0 |       0 | 1-21              
----------------------------------------------|---------|----------|---------|---------|-------------------
-Test Suites: 6 failed, 2 passed, 8 total
-Tests:       5 passed, 5 total
+  jwt.strategy.ts                                           |       0 |        0 |       0 |       0 | 1-21              
+ src/endpoint/config-site                                   |       0 |      100 |     100 |       0 |                   
+  config-site.module.ts                                     |       0 |      100 |     100 |       0 | 1-18              
+ src/endpoint/config-site/application                       |       0 |      100 |       0 |       0 |                   
+  site-config.service.impl.ts                               |       0 |      100 |       0 |       0 | 1-12              
+ src/endpoint/config-site/domain                            |       0 |      100 |     100 |       0 |                   
+  config-site.adapter.ts                                    |       0 |      100 |     100 |       0 | 1-6               
+  config-site.service.ts                                    |       0 |      100 |     100 |       0 | 1-6               
+ src/endpoint/config-site/infrastructure/adapter            |       0 |        0 |       0 |       0 |                   
+  ms-identity-config.adapter.ts                             |       0 |        0 |       0 |       0 | 1-45              
+ src/endpoint/config-site/infrastructure/controller         |       0 |      100 |       0 |       0 |                   
+  config-site.controller.ts                                 |       0 |      100 |       0 |       0 | 1-13              
+ src/endpoint/customer                                      |       0 |      100 |     100 |       0 |                   
+  customer.module.ts                                        |       0 |      100 |     100 |       0 | 1-24              
+ src/endpoint/customer/application                          |       0 |      100 |       0 |       0 |                   
+  customer.impl.service.ts                                  |       0 |      100 |       0 |       0 | 1-19              
+ src/endpoint/customer/domain                               |       0 |      100 |     100 |       0 |                   
+  customer.adapter.ts                                       |       0 |      100 |     100 |       0 | 5                 
+  customer.service.ts                                       |       0 |      100 |     100 |       0 | 5                 
+ src/endpoint/customer/infrastructure/adapter               |       0 |        0 |       0 |       0 |                   
+  ms-customer.adapter.ts                                    |       0 |        0 |       0 |       0 | 1-62              
+ src/endpoint/customer/infrastructure/controller            |       0 |      100 |       0 |       0 |                   
+  customer.controller.ts                                    |       0 |      100 |       0 |       0 | 1-24              
+ src/endpoint/products                                      |       0 |      100 |     100 |       0 |                   
+  products.module.ts                                        |       0 |      100 |     100 |       0 | 1-24              
+ src/endpoint/products/application                          |       0 |      100 |       0 |       0 |                   
+  products.impl.service.ts                                  |       0 |      100 |       0 |       0 | 1-19              
+ src/endpoint/products/domain                               |       0 |      100 |     100 |       0 |                   
+  products.adapter.ts                                       |       0 |      100 |     100 |       0 | 5                 
+  products.service.ts                                       |       0 |      100 |     100 |       0 | 5                 
+ src/endpoint/products/infrastructure/adapter               |       0 |        0 |       0 |       0 |                   
+  ms-products.adapter.ts                                    |       0 |        0 |       0 |       0 | 1-62              
+ src/endpoint/products/infrastructure/controller            |       0 |      100 |       0 |       0 |                   
+  products.controller.ts                                    |       0 |      100 |       0 |       0 | 1-24              
+ src/endpoint/search-transactions                           |       0 |      100 |     100 |       0 |                   
+  search-transactions.module.ts                             |       0 |      100 |     100 |       0 | 1-24              
+ src/endpoint/search-transactions/application               |     100 |      100 |     100 |     100 |                   
+  search-transactions.impl.service.ts                       |     100 |      100 |     100 |     100 |                   
+ src/endpoint/search-transactions/domain                    |     100 |      100 |     100 |     100 |                   
+  search-transactions.adapter.ts                            |     100 |      100 |     100 |     100 |                   
+  search-transactions.service.ts                            |     100 |      100 |     100 |     100 |                   
+ src/endpoint/search-transactions/infrastructure/controller |     100 |      100 |     100 |     100 |                   
+  search-transactions.controller.ts                         |     100 |      100 |     100 |     100 |                   
+------------------------------------------------------------|---------|----------|---------|---------|-------------------
+
+Test Suites: 1 failed, 4 passed, 5 total
+Tests:       7 passed, 7 total
 Snapshots:   0 total
-Time:        1.311 s
-Ran all test suites matching src/endpoint/auth.
+Time:        4.653 s
+Ran all test suites matching src/endpoint/search-transactions.
 
 INSTRUCCIÓN:
 1. Analiza el error.

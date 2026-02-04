@@ -14,7 +14,7 @@ NC='\033[0m'
 
 # Cargar variables de entorno desde el directorio de instalación
 if [ -f "$INSTALL_DIR/.env" ]; then
-    export $(grep -v '^#' "$INSTALL_DIR/.env" | xargs)
+    export $(grep -v '^[#\[]' "$INSTALL_DIR/.env" | xargs)
 fi
 
 # Asegurar permisos de ejecución en las acciones
@@ -84,13 +84,13 @@ case "$1" in
         read -p "Opción (1-3): " LANG_OPT
 
         case "$LANG_OPT" in
-            1) LANG="nestjs" ;; 
-            2) LANG="java" ;; 
-            3) LANG="python" ;; 
+            1) SELECTED_LANG="nestjs" ;; 
+            2) SELECTED_LANG="java" ;; 
+            3) SELECTED_LANG="python" ;; 
             *) echo -e "${RED}Opción inválida.${NC}"; exit 1 ;; 
         esac
         
-        if [ "$LANG" == "nestjs" ]; then
+        if [ "$SELECTED_LANG" == "nestjs" ]; then
             echo -e "\nSelecciona el tipo de template:"
             echo "1) Microservicio Estándar (Hexagonal)"
             echo "2) API Gateway (Base)"
