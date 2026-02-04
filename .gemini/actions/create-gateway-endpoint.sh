@@ -93,11 +93,12 @@ if [ "$MODULE_EXISTS" = "false" ] || [ "$SKIP_QUALITY" = "true" ]; then
     # 3. Reemplazar placeholders en el contenido de todos los archivos
     PASCHAL_NAME=$(to_pascal "$ENDPOINT_NAME")
     LOWER_NAME=$(echo "$ENDPOINT_NAME" | tr '[:upper:]' '[:lower:]')
-    UPPER_NAME=$(echo "$ENDPOINT_NAME" | tr '[:lower:]' '[:upper:]')
+    UPPER_NAME=$(echo "$ENDPOINT_NAME" | tr '[:lower:]' '[:upper:]' | tr -d '-')
     
     # Valores por defecto para placeholders
     FINAL_ROUTE="${ROUTE_PATH:-$LOWER_NAME}"
     FINAL_METHOD="${METHOD_NAME:-execute}"
+    # Si EXTERNAL_BASE_URL_ENV está vacío, usamos el nombre en mayúsculas sin guiones
     FINAL_ENV="${EXTERNAL_BASE_URL_ENV:-$UPPER_NAME}"
     
     echo -e "${BLUE}📝 Ajustando nombres en el contenido de los archivos...${NC}"
