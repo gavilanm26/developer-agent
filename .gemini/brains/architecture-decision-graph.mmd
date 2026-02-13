@@ -1,0 +1,24 @@
+graph TD
+    Start[User Request] --> A{Complexity Level?}
+    
+    A -- Low (CRUD) --> B1[Simple Architecture]
+    B1 --> C1[Direct Controller -> Service]
+    B1 --> C2[No Custom Ports]
+    
+    A -- Medium (Standard) --> B2[Hexagonal Standard]
+    B2 --> D1[Controller -> UseCase]
+    B2 --> D2[UseCase -> Port Interface]
+    B2 --> D3[Port -> Repo Adapter]
+    
+    A -- High (Enterprise) --> B3[Hexagonal + DDD + CQRS]
+    B3 --> E1[Separate Commands/Queries]
+    B3 --> E2[Domain Events]
+    B3 --> E3[Event Sourcing (Optional)]
+
+    Start --> F{High Performance?}
+    F -- Yes --> G[Add Redis Caching Layer]
+    F -- No --> H[No Caching]
+
+    Start --> I{External Integrations?}
+    I -- Yes --> J[Create ACL (Anti-Corruption Layer)]
+    I -- No --> K[Direct Calls]

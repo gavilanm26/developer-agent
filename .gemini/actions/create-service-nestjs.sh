@@ -93,4 +93,32 @@ if type apply_global_templates >/dev/null 2>&1; then
     apply_global_templates "."
 fi
 
-echo -e "${GREEN}✔ Microservicio '$NAME' listo en la raíz.${NC}"
+# 8. Implantar Cerebro del Agente (Self-Replication)
+echo -e "${BLUE}🧠 Implantando identidad y reglas del Agente...${NC}"
+mkdir -p ".gemini"
+
+# Copiar identidad
+if [ -f "$ROOT_AGENT_DIR/.gemini/AGENT.md" ]; then
+    cp "$ROOT_AGENT_DIR/.gemini/AGENT.md" ".gemini/"
+    echo -e "${GREEN}  - Identidad copiada.${NC}"
+fi
+
+# Copiar reglas
+if [ -d "$ROOT_AGENT_DIR/.gemini/rules" ]; then
+    cp -r "$ROOT_AGENT_DIR/.gemini/rules" ".gemini/"
+    echo -e "${GREEN}  - Reglas Hexagonales copiadas.${NC}"
+fi
+
+# Copiar skills (opcional pero recomendado)
+if [ -d "$ROOT_AGENT_DIR/.gemini/skills" ]; then
+    cp -r "$ROOT_AGENT_DIR/.gemini/skills" ".gemini/"
+    echo -e "${GREEN}  - Skills copiadas.${NC}"
+fi
+
+# Copiar cerebros (grafos de decisión)
+if [ -d "$ROOT_AGENT_DIR/.gemini/brains" ]; then
+    cp -r "$ROOT_AGENT_DIR/.gemini/brains" ".gemini/"
+    echo -e "${GREEN}  - Grafos de decisión (Brains) copiados.${NC}"
+fi
+
+echo -e "${GREEN}✔ Microservicio '$NAME' listo en la raíz con cerebro implantado.${NC}"
