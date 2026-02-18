@@ -1,0 +1,24 @@
+graph TD
+    Start[Code Implementation] --> Build{Build Success?}
+    
+    Build -- No --> FixBuild[Fix Compilation Errors]
+    FixBuild --> Build
+    
+    Build -- Yes --> TestUnit{Unit Tests Pass?}
+    TestUnit -- No --> FixTests[Fix Logic or Test]
+    FixTests --> TestUnit
+    
+    TestUnit -- Yes --> Coverage{Coverage >= 95%?}
+    Coverage -- No --> AddTests[Add More Test Cases]
+    AddTests --> TestUnit
+    
+    Coverage -- Yes --> RunApp{App Runtime Check}
+    RunApp -- Fail --> DebugRun[Debug Startup Crash]
+    DebugRun --> RunApp
+    
+    RunApp -- Success --> Postman[Generate Postman Collection]
+    Postman --> VerifyCurl{Verify Endpoint with Curl}
+    VerifyCurl -- Fail --> FixEndpoint[Fix Controller/DTO]
+    FixEndpoint --> TestUnit
+    
+    VerifyCurl -- Success --> Done[Ready for Delivery]

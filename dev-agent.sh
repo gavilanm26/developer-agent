@@ -1,9 +1,12 @@
 #!/bin/bash
 
 # --- Configuración de Rutas (Absolutas para Portabilidad) ---
-INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AGENT_DIR="$INSTALL_DIR/.gemini"
-ACTIONS_DIR="$AGENT_DIR/actions"
+INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # Configuración
+ROOT_AGENT_DIR=$(pwd)
+AGENTS_DIR="$INSTALL_DIR/.agents"
+RULES_DIR="$AGENTS_DIR/rules"
+WORKFLOWS_DIR="$AGENTS_DIR/workflows"
+ACTIONS_DIR="$INSTALL_DIR/.agents/actions"
 
 # Colores
 BLUE='\033[0;34m'

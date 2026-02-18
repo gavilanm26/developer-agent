@@ -1,0 +1,25 @@
+graph TD
+    Start[User Request] --> A{Complexity Level?}
+    
+    A -- Low (CRUD) --> B1[Simple Architecture]
+    B1 --> C1[Direct Controller -> Service]
+    B1 -->|Action| X1[Run: pure-nest-cli (External)]
+    
+    A -- Medium (Standard) --> B2[Hexagonal Standard]
+    B2 --> D1[Controller -> UseCase]
+    B2 --> D2[UseCase -> Port Interface]
+    B2 -->|Action| X2[Run: ./dev-agent.sh new-service (Hexagonal)]
+    
+    A -- High (Enterprise) --> B3[Hexagonal + DDD + CQRS]
+    B3 --> E1[Separate Commands/Queries]
+    B3 -->|Action| X3[Run: ./dev-agent.sh new-service + Manual DDD Refactor]
+
+    Start --> F{High Performance?}
+    F -- Yes --> G[Add Redis Caching Layer]
+    G -->|Refactor| R1[Implement: RedisAdapter]
+    F -- No --> H[No Caching]
+
+    Start --> I{External Integrations?}
+    I -- Yes --> J[Create ACL (Anti-Corruption Layer)]
+    J -->|Module| M1[Run: ./dev-agent.sh new-module (Adapter)]
+    I -- No --> K[Direct Calls]

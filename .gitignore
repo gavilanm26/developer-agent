@@ -1,0 +1,11 @@
+# General
+.DS_Store
+node_modules/
+.env
+
+# Test artifacts
+test-agent-*
+temp_gateway_scaffold
+
+# Agent temp files
+.agents/tmp/
