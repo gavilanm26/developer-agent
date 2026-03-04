@@ -1,0 +1,27 @@
+import { Module, Global } from '@nestjs/common';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+
+@Global()
+@Module({})
+export class OpenTelemetryConfig {
+  private static sdk: NodeSDK;
+
+  static initialize() {
+    this.sdk = new NodeSDK({
+      resource: resourceFromAttributes({
+        'service.name': '{{SERVICE_NAME}}',
+        'service.namespace': '{{SERVICE_NAME}}',
+      }),
+      traceExporter: new OTLPTraceExporter({
+        url: process.env.GRAFANAURLTRACES,
+        headers: {},
+      }),
+      instrumentations: [getNodeAutoInstrumentations()],
+    });
+
+    this.sdk.start();
+  }
+}
